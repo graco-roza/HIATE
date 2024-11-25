@@ -1,7 +1,7 @@
 # Ignore everything in the S1_Preprocessing step
 S1_Preprocessing/Raw_data/*
 S1_Preprocessing/Processed/*
-S1_Preprocessing/not_needed/
+S1_Preprocessing/not_needed
 S1_Preprocessing/Human_footprint/*
 S1_Preprocessing/wc10/*
 
