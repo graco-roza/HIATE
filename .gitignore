@@ -20,7 +20,7 @@ S4_get_best_predictors/**/*.rds
 S5_Null_models/**/*.rds
 
 # Ignore files and folders in the S6_Synthesis_model step
-S6_Synthesis_model/data/*.xlsx
+#S6_Synthesis_model/data/*.xlsx
 
 # Ignore everything in the S7_Model_outputs_figures_and_tables expect for the folder
 S7_Model_outputs_figures_and_tables/*
