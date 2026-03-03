@@ -71,7 +71,7 @@ BAYES_SEED <- 1234   # Seed for reproducibility in Bayesian sampling
 # Load and preprocess data ####
 # Process data for testing dependency between species and traits
 # This relies on null model results from S5
-model_data <- process_model_data("S6_Synthesis_model/data/synthesis_data_revision.xlsx", "convergence")
+model_data <- process_model_data("S6_Synthesis_model/data/synthesis_data.xlsx", "convergence")
 
 model_data <- model_data |>  filter(beta_type == "Podani", metric_type == "abun")
 # Check for convergence in direction 

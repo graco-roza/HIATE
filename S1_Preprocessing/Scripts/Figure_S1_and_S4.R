@@ -11,7 +11,7 @@
 # INPUTS:
 #   - `S1_Preprocessing/Processed/*.rds`
 #   - `S1_Preprocessing/Miscellaneous/dataset_info_all.xlsx`
-#   - `S6_Synthesis_model/data/synthesis_data_new.xlsx`
+#   - `S6_Synthesis_model/data/synthesis_data.xlsx`
 #
 # OUTPUTS:
 #   - Publication-ready figure objects saved/exported within this script.
@@ -82,7 +82,7 @@ my_base_theme <- function() {
 }
 
 additional_features <- 
-  "S6_Synthesis_model/data/synthesis_data_new.xlsx" |>
+  "S6_Synthesis_model/data/synthesis_data.xlsx" |>
   readxl::read_xlsx() |>
   filter(!dataset %in% c("N67TTP","N78TTP","S47TTP")) |> 
   dplyr::mutate(
