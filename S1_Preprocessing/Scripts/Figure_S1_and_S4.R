@@ -1,10 +1,24 @@
-#' ---
-#' title: "Map and Dataset Features"
-#' author: "Caio Graco-Roza"
-#' date: "5/14/2021"
-#' output: pdf_document
-#' ---
-
+###############################################################################
+# SCRIPT NAME: Figure_S1_and_S4.R
+#
+# DESCRIPTION:
+#   Generates map and dataset-feature figures used in supplementary outputs
+#   (Figure S1 and Figure S4).
+#
+# USAGE:
+#   Run after Step 1 preprocessing and synthesis data compilation are available.
+#
+# INPUTS:
+#   - `S1_Preprocessing/Processed/*.rds`
+#   - `S1_Preprocessing/Miscellaneous/dataset_info_all.xlsx`
+#   - `S6_Synthesis_model/data/synthesis_data_new.xlsx`
+#
+# OUTPUTS:
+#   - Publication-ready figure objects saved/exported within this script.
+#
+# AUTHOR: Caio Graco-Roza
+# LAST UPDATED: 2026-03-03
+###############################################################################
 pacman::p_load(ggmap,
                tidyverse,
                ggthemes,
@@ -19,7 +33,10 @@ pacman::p_load(ggmap,
                ggh4x)
 #registering my google token for using ggmap ----
 
-ggmap::register_google('AIzaSyBP7U9mHiqB2q83f9JrNq4yjn4b6rAKhTg') 
+google_key <- Sys.getenv("GGMAP_GOOGLE_API_KEY", unset = "")
+if (nzchar(google_key)) {
+  ggmap::register_google(key = google_key)
+}
 
 # install fonts  ----
 

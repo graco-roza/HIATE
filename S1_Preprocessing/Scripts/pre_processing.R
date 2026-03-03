@@ -1,40 +1,25 @@
 ###############################################################################
-# SCRIPT NAME: Pre-processing Community and Trait Data
+# SCRIPT NAME: pre_processing.R
 #
 # DESCRIPTION:
-#   This script handles the data cleaning and transformation of community and
-#   trait datasets. It is designed to prepare the data for downstream analyses,
-#   including the estimation of species dissimilarities based on selected 
-#   functional traits. The pre-processing steps include:
-#     - Cleaning and filtering community and trait datasets
-#     - Estimating predictors (e.g., human footprint, climate variables)
-#     - Saving cleaned datasets for further analysis
+#   Cleans and harmonizes community/trait datasets and extracts site-level
+#   predictors (human footprint, MODIS, climate) for downstream analyses.
 #
 # USAGE:
-#   This script is executed as part of a batch process using SLURM on an HPC.
-#   It can also be run manually for specific datasets.
+#   - SLURM mode: set `SLURM_ARRAY_TASK_ID` to run one dataset per job array.
+#   - Local mode: run without `SLURM_ARRAY_TASK_ID` to process all datasets.
 #
 # INPUTS:
-#   - Raw data files: located in `S1_Preprocessing/Raw_data`
-#   - Metadata: `S1_Preprocessing/Miscellaneous/dataset_info_all.xlsx`
-#   - Auxiliary functions: `S1_Preprocessing/Functions/auxiliary_functions.R`
+#   - `S1_Preprocessing/Raw_data/*.xlsx`
+#   - `S1_Preprocessing/Miscellaneous/dataset_info_all.xlsx`
+#   - `S1_Preprocessing/Functions/auxiliary_functions.R`
 #
 # OUTPUTS:
-#   - Cleaned datasets: saved in `S1_Preprocessing/pre_processed`
+#   - `S1_Preprocessing/Processed/<dataset>_clean.rds`
 #
 # AUTHOR: Caio Graco-Roza
 # DATE CREATED: 2021-05-14
-# LAST UPDATED: 2024-11-20
-#
-# NOTES:
-#   - Ensure all required packages are installed before execution.
-#   - This script leverages SLURM to process datasets in parallel.
-#   - Key cleaning steps:
-#     1. Retain sites with coordinates.
-#     2. Retain species with trait data.
-#     3. Remove sites with fewer than 2 species (needed for hypervolume estimation).
-#     4. Remove species with zero abundance across all sites.
-#     5. Ensure consistency between community, trait, and coordinate datasets.
+# LAST UPDATED: 2026-03-03
 ###############################################################################
 
 # Packages .............................................................................................................
@@ -66,51 +51,49 @@ pacman::p_load(
 #' - In the coordinates, keep only the ones for the sites with communities
 
 # grab the array id value from the environment variable passed from sbatch
-slurm_arrayid <- Sys.getenv('SLURM_ARRAY_TASK_ID')
+slurm_arrayid <- Sys.getenv("SLURM_ARRAY_TASK_ID", unset = "")
 
-# coerce the value to an integer
-ii <- as.numeric(slurm_arrayid)
+files <- list.files("S1_Preprocessing/Raw_data", pattern = "\\.xlsx$", ignore.case = TRUE)
+dataset_ids <- tools::file_path_sans_ext(files)
 
+if (slurm_arrayid != "") {
+  ii <- as.numeric(slurm_arrayid)
+  if (is.na(ii) || ii < 1 || ii > length(dataset_ids)) {
+    stop(glue::glue("Invalid SLURM_ARRAY_TASK_ID: {slurm_arrayid}. Valid range: 1-{length(dataset_ids)}"))
+  }
+  focal_datasets <- dataset_ids[ii]
+} else {
+  focal_datasets <- dataset_ids
+}
 
-#' -----------------------------------------------------------------------------------------------------------------
 # @ run analysis ######
-#' -----------------------------------------------------------------------------------------------------------------
-failed_datasets <- sort(c(152, 147, 158, 127, 27, 113, 107, 10, 6, 29, 95, 56, 70, 37, 96, 32, 43, 49, 94, 60, 31, 64, 77, 18))[-c(1:11)]
+data_info <- readxl::read_xlsx("S1_Preprocessing/Miscellaneous/dataset_info_all.xlsx")
+source("S1_Preprocessing/Functions/auxiliary_functions.R")
 
-for (ii in failed_datasets){
-files<-list.files("S1_Preprocessing/Raw_data")
-
-focal_dataset <- "N29FMI" #tools::file_path_sans_ext(files[ii])
-
-
-  # read dataset info
-  data_info <- readxl::read_xlsx("S1_Preprocessing/Miscellaneous/dataset_info_all.xlsx") 
-  source("S1_Preprocessing/Functions/auxiliary_functions.R")
-  
+for (focal_dataset in focal_datasets) {
   tryCatch({
     write("clean data", stdout())
     write(focal_dataset, stdout())
-    
+
     # clean data
     data_clean <- clean_data(focal_dataset)
-    
+
     # get predictors
-    data_predictors <- data_clean %>% 
+    data_predictors <- data_clean %>%
       pluck("coord") %>%
-      drop_na()  %>% 
+      drop_na() %>%
       mutate(site = as.character(site)) %>%
       get_predictors(focal_dataset)
-    
-    data_clean$predictors <- data_predictors 
-    # save pre-processed data
-    saveRDS(object = data_clean, file = glue::glue("S1_Preprocessing/Processed/{focal_dataset}_clean.rds"))
-    
-    # remove objects from memory
 
-   # rm(list = setdiff(ls(), "files"))
+    data_clean$predictors <- data_predictors
+
+    # save pre-processed data
+    saveRDS(
+      object = data_clean,
+      file = glue::glue("S1_Preprocessing/Processed/{focal_dataset}_clean.rds")
+    )
   }, error = function(e) {
     write(glue::glue("Error occurred in processing {focal_dataset}: {e}\n"), stdout())
   })
-
 }
 # -------------------------------------------------------------------------------------------------------------------
