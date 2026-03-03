@@ -129,17 +129,12 @@ HIATE:
 ## Usage Instructions
 
 ### Prerequisites
-- **Software**: R (≥4.4.1), RStudio, and required packages (`tidyverse`, `brms`, `gawdis`, etc.).
+- **Software**: R (≥4.5.1), RStudio, and required packages (`tidyverse`, `brms`, `gawdis`, etc.).
 - **System Requirements**: Sufficient RAM and storage for large datasets and computationally intensive models.
 
 ### Running the Pipeline
 1. Clone the repository and set up the working directory.
 2. Follow the README in each step to execute scripts in sequence.
 3. Use the synthesis model (`S6_Synthesis_model`) to generate results and figures for publication.
-
-## Additional Notes
-- **Metadata**: Each dataset includes a corresponding metadata file to ensure reproducibility and alignment with FAIR principles.
-- **Collaboration**: Contributions to improve this pipeline are welcome. Please submit a pull request or open an issue.
-- **Citation**: If using this repository, cite the manuscript: *Graco-Roza et al., Human Pressure Homogenises Species and Traits Globally (XXXX)*.
 
 For further details, see individual READMEs in each step.
