@@ -80,7 +80,7 @@ BAYES_SEED <- 1234   # Seed for reproducibility in Bayesian sampling
 
 # Load and process model data ####
 # Load the synthesis data for modeling the shape of responses
-model_data <- process_model_data("S6_Synthesis_model/data/synthesis_data_complete.xlsx", "shape")
+model_data <- process_model_data("S6_Synthesis_model/data/synthesis_data.xlsx", "shape")
 
 
 model_data <- model_data |>  filter(framework == "Podani", feature == "abun")

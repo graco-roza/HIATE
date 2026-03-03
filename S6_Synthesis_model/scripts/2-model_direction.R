@@ -62,7 +62,7 @@ WARMUP <- 2500                       # Number of iterations used for warmup (not
 BAYES_SEED <- 1234                   # Seed for reproducibility in Bayesian modeling
 
 
-model_data <- process_model_data("S6_Synthesis_model/data/synthesis_data_complete.xlsx", "direction")
+model_data <- process_model_data("S6_Synthesis_model/data/synthesis_data.xlsx", "direction")
 
 model_data<- model_data |> filter(framework == "Podani",
                      feature == "abun") 
