@@ -2,35 +2,28 @@
 # SCRIPT NAME: auxiliary_functions.R
 #
 # DESCRIPTION:
-#   This script contains auxiliary functions used throughout the project for
-#   data cleaning, processing, and extraction of predictors such as human
-#   footprint, MODIS land cover, and climate data.
+#   Utility functions used in Step 1 for dataset cleaning and extraction of
+#   predictors (human footprint, MODIS-derived land cover, and climate).
 #
 # USAGE:
-#   This script is sourced by other scripts in the workflow.
+#   Source this script from preprocessing workflows.
 #
 # INPUTS:
-#   - Raw data files: species data, trait data, coordinates, and environment data
-#   - Spatial raster files: Human Footprint (2009), WorldClim bioclimatic variables
-#   - MODIS product: MCD12Q1 (land cover data)
+#   - `S1_Preprocessing/Raw_data/*.xlsx`
+#   - Spatial raster files in `S1_Preprocessing/Miscellaneous/`
 #
 # OUTPUTS:
-#   - Cleaned datasets: community, traits, coordinates, and environment
-#   - Predictors extracted for each site: Human Footprint, MODIS, and climate data
+#   - In-memory cleaned data objects and predictor tables returned by functions
 #
-# AUTHOR: [Caio Graco-Roza]
-# LAST UPDATED: [20.11.2024]
-#
-# NOTES:
-#   - This script uses libraries such as `dplyr`, `raster`, `sf`, and `MODISTools`
-#   - Ensure all input files are properly formatted and projections are consistent.
+# AUTHOR: Caio Graco-Roza
+# LAST UPDATED: 2026-03-03
 ###############################################################################
 
 library(sp)
 # Function to clean all raw datasets
 clean_data <- function(focal_dataset) { 
   # Define the path to the dataset
-  dataset_path <- glue::glue("S1_Preprocessing/raw_data/{focal_dataset}.xlsx")
+  dataset_path <- glue::glue("S1_Preprocessing/Raw_data/{focal_dataset}.xlsx")
   
   # Load data from the dataset
   comm_original <- dataset_path %>% read_excel(sheet = "species", na = c("NA", "", "#N/A")) %>% column_to_rownames("site") # Load community data

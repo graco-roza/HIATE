@@ -14,6 +14,7 @@ Each step contains its own README file and metadata for relevant datasets and sc
 ```plaintext
 HIATE:
   - HIATES.Rproj
+  - supplementary_material
   - S1_Preprocessing:
       - Functions
       - Miscellaneous
@@ -54,6 +55,9 @@ HIATE:
       - main_figures
       - model
 ```
+
+### Other Top-Level Contents
+- **`supplementary_material/`**: Quarto and R files used to prepare supplementary information and diagnostics.
 
 ### Step 1: Preprocessing (`S1_Preprocessing`)
 - **Description**: Raw datasets are preprocessed to extract key metrics, clean data, and standardize formats for downstream analyses.
@@ -139,4 +143,3 @@ HIATE:
 - **Citation**: If using this repository, cite the manuscript: *Graco-Roza et al., Human Pressure Homogenises Species and Traits Globally (XXXX)*.
 
 For further details, see individual READMEs in each step.
-
