@@ -1,6 +1,6 @@
 # HIATE Project Repository
 
-Welcome to the HIATE project repository, associated with the manuscript **"Human Pressure Homogenises Species and Traits Globally"** by Graco-Roza et al.
+Welcome to the HIATE project repository, associated with the manuscript **"Human pressures drive widespread decoupling of taxonomic and functional turnover"** by Graco-Roza et al.
 This repository includes all the data, scripts, and documentation required to replicate the analyses and figures presented in the manuscript. 
 The repository is designed to align with FAIR (Findable, Accessible, Interoperable, Reusable) principles, ensuring clear organization, metadata, and usability.
 If any improvement can be done, please contact me at: **caio.roza@helsinki.fi**
