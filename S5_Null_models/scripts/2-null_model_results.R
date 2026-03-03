@@ -82,7 +82,6 @@ iterations <- length(null_model_files)         # used for the foreach loop
 output <- list() 
 for (i in 1:164){
   print(i)
-i=1
   tryCatch({
                    require(tidyverse)
                    source("S5_Null_models/functions/functions_run_null_bbgdm.R")
@@ -118,13 +117,6 @@ i=1
 }, error = function(e) {cat(glue::glue("dataset {i} - {filename} [FAILED]"))})
 }
 
-null_model[[1]]
-
-glimpse(out)
-
-#stopCluster(cl) 
-write_rds(output,"tmp2.rds")
-#Save final results.
 output |> 
   bind_rows() |> 
   filter(direction_pvalue < 0.05) |> 
@@ -132,12 +124,3 @@ output |>
   group_by(direction) |> 
   count(ses)
   xlsx::write.xlsx("S6_Synthesis_model/BBGDM_SES.xlsx")
-
-
-
-length(which(!sapply(output,is.null)))
-
-
-out |> 
-  left_join(metadata) |> 
-  glimpse()
