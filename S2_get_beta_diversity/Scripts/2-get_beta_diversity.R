@@ -37,7 +37,7 @@
 #   - Functional beta diversity calculations require sufficient species trait
 #     data; sites with missing or insufficient traits will be skipped.
 ###############################################################################
-
+setwd("~/Library/CloudStorage/OneDrive-UniversityofHelsinki/Ongoing manuscripts/HIATES/Analysis/HIATE/S2_get_beta_diversity")
 # Packages .............................................................................................................
 if(!require("pacman")) {install.packages("pacman")}
 
@@ -71,7 +71,7 @@ appendList <- function (x, val) {
 # grab the array id value from the environment variable passed from sbatch
 slurm_arrayid <- Sys.getenv('SLURM_ARRAY_TASK_ID')
 # coerce the value to an integer
-ii <- as.numeric(slurm_arrayid)
+ii <- 1#as.numeric(slurm_arrayid)
 #' =================================================================================================================
 
 #' -----------------------------------------------------------------------------------------------------------------
@@ -97,7 +97,7 @@ TBeta <- BAT::beta(comm, abund = TRUE, func = "sorensen")
 
 # Estimate Functional Beta diversity -------------------------------------------------------------------------------
 write(" -------------------------- Estimate functional alpha  div", stderr())
-cores<- future::availableCores() #get number of available cores (I use all because the HPC allows me to, usually beter cores/2)
+cores<- future::availableCores()-1 #get number of available cores (I use all because the HPC allows me to, usually beter cores/2)
 cl <- makeSOCKcluster(cores)
 
 registerDoSNOW(cl)
@@ -125,6 +125,8 @@ write(" -------------------------- Estimate functional beta div", stderr())
 #get number of site where beta diversity did not fail 
 alpha_n<-length(alpha.FD@HVList)
 
+
+
 #get name of these sites
 name_sites<-sapply(seq_along(alpha.FD@HVList), function(i) alpha.FD@HVList[[i]]@Name)
 
@@ -146,20 +148,155 @@ pairwise_beta <-  foreach(i = 1:alpha_n,
     union <- hyperSet[[4]]@Volume
     unique1 <- hyperSet[[5]]@Volume
     unique2 <- hyperSet[[6]]@Volume
-    
     #apply sorensen calculation of beta diversity
     union <- 2 * union - unique1 - unique2
     Btotal <- (unique1 + unique2) / union
     Brepl <- 2 * min(unique1, unique2) / union
     Brich <- abs(unique1 - unique2) / union
-    output <- list(Btotal = Btotal,
-                   Brepl = Brepl,
-                   Brich = Brich)
-    return(output)
+
+    
+    # --- Step 1. Extract the hypervolume objects for sites i and j ---
+    hv1 <- hyperSet[[1]]
+    hv2 <- hyperSet[[2]]
+    
+    # # --- Step 2. Extract the random points (the trait space coordinates) ---
+    # # These should be matrices (n x d) where d is the number of dimensions (here, 3)
+    # data1 <- hv1@RandomPoints  # e.g., matrix with dimensions (n1 x 3)
+    # data2 <- hv2@RandomPoints  # e.g., matrix with dimensions (n2 x 3)
+    # 
+    # # --- Step 3. Set up the grid parameters ---
+    # n_bins <- 10  # number of bins per dimension (adjust if needed)
+    # 
+    # # Determine overall ranges across both hypervolumes for each trait dimension
+    # all_data <- rbind(data1, data2)
+    # mins <- apply(all_data, 2, min)
+    # maxs <- apply(all_data, 2, max)
+    # 
+    # # --- Step 4. Define a helper function to assign each point to a grid cell ---
+    # assign_bins <- function(data, mins, maxs, n_bins) {
+    #   # For each dimension, determine the bin index
+    #   bin_indices <- sapply(seq_len(ncol(data)), function(j) {
+    #     cut(data[, j],
+    #         breaks = seq(mins[j], maxs[j], length.out = n_bins + 1),
+    #         include.lowest = TRUE,
+    #         labels = FALSE)
+    #   })
+    #   # Combine the bin indices from all dimensions into a single string identifier per point
+    #   bins <- apply(bin_indices, 1, paste, collapse = "_")
+    #   return(bins)
+    # }
+    # 
+    # # --- Step 5. Assign bins to the random points for both hypervolumes ---
+    # bins1 <- assign_bins(data1, mins, maxs, n_bins)
+    # bins2 <- assign_bins(data2, mins, maxs, n_bins)
+    # 
+    # # --- Step 6. Count the number of points in each bin for each hypervolume ---
+    # counts1 <- table(bins1)
+    # counts2 <- table(bins2)
+    # 
+    # # Ensure both count tables cover the same set of bins:
+    # all_bins <- union(names(counts1), names(counts2))
+    # 
+    # # Fill missing bins with a count of 0:
+    # counts1_full <- sapply(all_bins, function(b) if (b %in% names(counts1)) counts1[[b]] else 0)
+    # counts2_full <- sapply(all_bins, function(b) if (b %in% names(counts2)) counts2[[b]] else 0)
+    # 
+    # # --- Step 7. Convert counts to relative frequencies (proportions) ---
+    # p <- counts1_full / sum(counts1_full)
+    # q <- counts2_full / sum(counts2_full)
+    # 
+    # # --- Step 8. Calculate the Morisita Horn index ---
+    # # Similarity = (2 * sum(p_i * q_i)) / (sum(p_i^2) + sum(q_i^2))
+    # numerator <- 2 * sum(p * q)
+    # denom <- sum(p^2) + sum(q^2)
+    # morisita_similarity <- numerator / denom
+    # 
+    # # Convert similarity to dissimilarity:
+    # morisita_dissimilarity <- 1 - morisita_similarity
+    
+    # Load the necessary package for nearest neighbor search
+    library(RANN)
+    
+    # Define a function to perform nearest neighbor weighted interpolation
+    nn_interpolate <- function(query_points, data_points, data_values, k = 10) {
+      # query_points: matrix (n_query x 3) where we want to estimate density
+      # data_points: matrix (n_data x 3) from hv@RandomPoints
+      # data_values: vector of length n_data, corresponding density values
+      # k: number of nearest neighbors to use
+      #
+      # Returns: a vector of interpolated density values at the query points.
+      
+      nn_result <- nn2(data = data_points, query = query_points, k = k)
+      dists <- nn_result$nn.dists
+      idx   <- nn_result$nn.idx
+      
+      # Avoid division by zero by replacing very small distances with a tiny epsilon.
+      epsilon <- 1e-6
+      dists[dists < epsilon] <- epsilon
+      
+      # Compute inverse distance weights
+      weights <- 1 / dists
+      weights <- weights / rowSums(weights)  # Normalize weights for each query point
+      
+      # For each query point, compute the weighted average of data_values
+      interpolated <- sapply(seq_len(nrow(query_points)), function(i) {
+        sum(weights[i, ] * data_values[idx[i, ]])
+      })
+      
+      return(interpolated)
+    }
+    
+    # ----- Step 1. Prepare your density data for hv1 and hv2 -----
+    
+    # For hv1:
+    hv1_points <- as.matrix(hv1@RandomPoints)  # assuming dimensions: n1 x 3
+    hv1_densities <- hv1@ValueAtRandomPoints     # vector of length n1
+    
+    # For hv2:
+    hv2_points <- as.matrix(hv2@RandomPoints)  # n2 x 3
+    hv2_densities <- hv2@ValueAtRandomPoints     # vector of length n2
+    
+    # ----- Step 2. Define the integration domain using the union hypervolume -----
+    # We'll use the union hypervolume's random points as the common evaluation grid.
+    union_points <- as.matrix(hyperset[[4]]@RandomPoints)  # m x 3 matrix
+    union_volume <- hyperset[[4]]@Volume
+    
+    # ----- Step 3. Interpolate densities at the union points -----
+    # Use the nn_interpolate function to get continuous density estimates at union points.
+    # Adjust k (e.g., k = 10) as needed.
+    f_A_vals <- nn_interpolate(query_points = union_points,
+                               data_points  = hv1_points,
+                               data_values  = hv1_densities,
+                               k = 10)
+    
+    f_B_vals <- nn_interpolate(query_points = union_points,
+                               data_points  = hv2_points,
+                               data_values  = hv2_densities,
+                               k = 10)
+    
+    # ----- Step 4. Approximate the integrals using Monte Carlo integration -----
+    # The idea is that the mean over the union points multiplied by the union volume 
+    # approximates the integrals:
+    #
+    # I_AA = ∫ f_A(x)^2 dx ≈ mean(f_A_vals^2) * union_volume
+    # I_BB = ∫ f_B(x)^2 dx ≈ mean(f_B_vals^2) * union_volume
+    # I_AB = ∫ f_A(x) f_B(x) dx ≈ mean(f_A_vals * f_B_vals) * union_volume
+    
+    I_AA <- mean(f_A_vals^2) * union_volume
+    I_BB <- mean(f_B_vals^2) * union_volume
+    I_AB <- mean(f_A_vals * f_B_vals) * union_volume
+    
+    # ----- Step 5. Compute the continuous Morisita Horn index -----
+    morisita_dissimilarity <- 1-((2 * I_AB) / (I_AA + I_BB))
+    
+
+ output <- list(sorensen = Brepl,
+                morisita = morisita_dissimilarity)
+return(output)
   }
 stopCluster(cl)
 
-#Assemble beta objects into distance matrices
+#Assemblepairwise_beta beta objects into distance matrices
 output_beta<-lapply(1:3, function(x) matrix(NA,alpha_n,alpha_n))
 names(output_beta) <- c("Btotal","Brepl","Brich")
 
@@ -170,11 +307,18 @@ FBeta <- lapply(output_beta, as.dist) #conver matrices into distance objects
 FBeta <- lapply(FBeta, function(x) set_names(x, name_sites)) # set site names for the distance matrices
 
 
-
+hyperSet <- hypervolume::hypervolume_set(alpha.FD@HVList[[1]]
+                                         ,alpha.FD@HVList[[2]]
+                                         ,check.memory = FALSE
+                                         ,verbose = FALSE
+                                         ,num.points.max=5^(3+sqrt(3)))
+plot(hyperset)
+hypervolume::plot.Hypervolume(hyperSet@HVList[[1]],show.3d=TRUE)
 # Save resutls  ---------------------------------------------------------------------------------------------------
-
-
+hypervolume::hypervolume_set_n_intersection()
+plot(pairwise_beta$sorensen,pairwise_beta$morisita)
 betadiv <- list(Taxonomic = TBeta,
                 Functional = FBeta)
+plot(hv2)
 
 saveRDS(object = betadiv, file = glue::glue("betadiv_output/{focal_dataset}_beta_Output.rds"))

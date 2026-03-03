@@ -8,60 +8,173 @@
 #' and handling associated data transformations. The functions assist in analyzing dissimilarity metrics and 
 #' environmental predictors, including residual diagnostics, plotting, and effect size computations.
 #' -----------------------------------------------------------------------------------------------------------------
-
 require(Hmisc)
-#' @title Pooled Variance Calculation
-#' @description Calculates a pooled variance measure for two samples using a specified function.
-#' @param x A numeric vector representing the first sample.
-#' @param y A numeric vector representing the second sample.
-#' @param FUN A function to calculate the variance measure (e.g., standard deviation).
-#' @return A numeric value of the pooled variance measure.
-#' @examples
-#' pooled(c(1, 2, 3), c(4, 5, 6), sd)
+
+# ─── Safe helper functions ────────────────────────────────────────────────────
+median_overlap <- function(homog, diffe, dens_n = 512) {
+  n <- 1000
+  if (length(homog) != n || length(diffe) != n) 
+    stop("homog and diffe must both have length 1000")
+  
+  ok_h <- !is.na(homog)
+  ok_d <- !is.na(diffe)
+  n_h <- sum(ok_h)
+  n_d <- sum(ok_d)
+  prop_h <- n_h / n
+  prop_d <- n_d / n
+  
+  med_h <- if (n_h > 0) median(homog[ok_h]) else 0
+  med_d <- if (n_d > 0) median(diffe[ok_d]) else 0
+  
+  if (n_h == 0 && n_d == 0) {
+    return(list(
+      med_h = 0, med_d = 0,
+      prop_h = 0, prop_d = 0,
+      overlap = 1,
+      hybrid = 0
+    ))
+  }
+  
+  # Continuous overlap only if both have >= 2 successful draws
+  if (n_h >= 2 && n_d >= 2) {
+    rng <- range(c(homog[ok_h], diffe[ok_d]))
+    dx <- diff(rng) / (dens_n - 1)
+    fx <- stats::density(homog[ok_h], from = rng[1], to = rng[2], n = dens_n)$y
+    fy <- stats::density(diffe[ok_d], from = rng[1], to = rng[2], n = dens_n)$y
+    cont_ovl <- sum(pmin(fx, fy)) * dx
+  } else {
+    cont_ovl <- 0
+  }
+  
+  # NA-overlap = shared failure rate
+  fail_overlap <- min(1 - prop_h, 1 - prop_d)
+  overlap <- cont_ovl + fail_overlap
+  overlap <- min(max(overlap, 0), 1)
+  
+  corr_h <- med_h * prop_h
+  corr_d <- med_d * prop_d
+  
+  hybrid <- (corr_h - corr_d) * (1 - overlap)
+  
+  list(
+    r2_diff = (corr_h - corr_d),
+    hybrid  = hybrid
+  )
+}
+
 pooled <- function(x, y, FUN) {
   nx <- length(x)
   ny <- length(y)
   sqrt(((nx - 1) * FUN(x) ^ 2 + (ny - 1) * FUN(y) ^ 2) / (nx + ny - 2))
 }
-
-#' @title High-Density Median
-#' @description Calculates the high-density (HD) median of a numeric vector.
-#' @param x A numeric vector.
-#' @return A numeric value representing the HD median.
-#' @examples
-#' hdmedian(c(1, 2, 3, 4, 5))
 hdmedian <- function(x) as.numeric(hdquantile(x, 0.5))
-
-#' @title High-Density Median Absolute Deviation
-#' @description Calculates the high-density (HD) median absolute deviation (MAD) of a numeric vector.
-#' @param x A numeric vector.
-#' @return A numeric value representing the HD MAD.
-#' @examples
-#' hdmad(c(1, 2, 3, 4, 5))
 hdmad <- function(x) 1.4826 * hdmedian(abs(x - hdmedian(x)))
-
-#' @title Pooled High-Density Median Absolute Deviation
-#' @description Calculates the pooled HD MAD for two numeric vectors.
-#' @param x A numeric vector representing the first sample.
-#' @param y A numeric vector representing the second sample.
-#' @return A numeric value of the pooled HD MAD.
-#' @examples
-#' phdmad(c(1, 2, 3), c(4, 5, 6))
 phdmad <- function(x, y) pooled(x, y, hdmad)
 
-#' @title Gamma Effect Size
-#' @description Calculates the gamma effect size between two samples using high-density quantiles.
-#' @param x A numeric vector representing the first sample.
-#' @param y A numeric vector representing the second sample.
-#' @param prob A numeric value between 0 and 1 indicating the quantile probability.
-#' @return A numeric value representing the gamma effect size.
-#' @examples
-#' gammaEffectSize(c(1, 2, 3), c(4, 5, 6), 0.5)
-gammaEffectSize <- function(x, y, prob) {
-  if(length(na.exclude(y)) < 300) y <- c(na.exclude(y), rep(0, length(na.exclude(x)) - length(na.exclude(y))))
-  if(length(na.exclude(x)) < 300) x <- c(na.exclude(x), rep(0, length(na.exclude(y)) - length(na.exclude(x))))
-  res <- as.numeric((hdquantile(na.exclude(y), prob) - hdquantile(na.exclude(x), prob)) / phdmad(na.exclude(x), na.exclude(y)))
-  return(res)
+harrel_davis <- function(homog, diffe, prob = 0.5, n = 1000) {
+  ok_h <- !is.na(homog)
+  ok_d <- !is.na(diffe)
+  n_h  <- sum(ok_h)
+  n_d  <- sum(ok_d)
+  
+  prop_h <- n_h / n
+  prop_d <- n_d / n
+  
+  if (n_h == 0 && n_d == 0) return(0)
+  
+  # Use fallback: if only one value, take it; else try hdquantile
+  med_h <- if (n_h == 1) homog[ok_h] else if (n_h > 1) hdquantile(homog[ok_h], prob) else 0
+  med_d <- if (n_d == 1) diffe[ok_d] else if (n_d > 1) hdquantile(diffe[ok_d], prob) else 0
+  
+  adj_h <- med_h * prop_h
+  adj_d <- med_d * prop_d
+  
+  # Safe pooled MAD
+  safe_hd_mad <- function(x, y) {
+    x0 <- na.omit(x)
+    y0 <- na.omit(y)
+
+    if (length(x0) < 2 && length(y0) < 2) return(NA_real_)
+    if (length(x0) < 2) return(mad(y0))
+    if (length(y0) < 2) return(mad(x0))
+
+    phdmad(x0, y0)
+  }
+
+  pooled_mad <- safe_hd_mad(homog[ok_h], diffe[ok_d])
+
+  # Handle edge cases
+  if (is.na(pooled_mad) || pooled_mad == 0) {
+    raw_diff <- adj_h - adj_d
+    if (raw_diff > 0) return(1)
+    if (raw_diff < 0) return(-1)
+    return(0)
+  }
+  
+  return(as.numeric((adj_h - adj_d) / pooled_mad))
+}
+
+
+
+#Shapes functions 
+
+#’ Compute cumulative % of total turnover at fraction(s) of the gradient
+#’
+#’ E.g. with props = c(0.25,0.5,0.75), returns the % of total I-spline
+#’ contribution achieved by 25/50/75 % of the predictor range.
+#’
+#’ @param c1,c2,c3 Numeric coefficients.
+#’ @param k1,k2,k3 Numeric knot positions (min, median, max).
+#’ @param props    Numeric vector ∈ [0,1], fractional positions (default c(0.25,0.5,0.75)).
+#’ @param PSAMPLE  Integer. Grid resolution (default 500).
+#’
+#’ @return A tibble with columns:
+#’   \item{prop}{Fraction of the predictor range}
+#’   \item{ef_pct}{Cumulative % of total turnover at that fraction}
+#’ @export
+pct_by_props <- function(c1, c2, c3,
+                         k1, k2, k3,
+                         props   = c(0.25, 0.5, 0.75),
+                         PSAMPLE = 500) {
+  curve <- ispline_curve_row(k1, k2, k3, c1, c2, c3, PSAMPLE)
+  total <- dplyr::last(curve$y)
+  tibble::tibble(
+    prop   = props,
+    ef_pct = 100 * purrr::map_dbl(props, function(p) {
+      x0  <- k1 + p * (k3 - k1)
+      idx <- which.min(abs(curve$x - x0))
+      curve$y[idx] / total
+    })
+  )
+}
+
+
+#’ Compute cumulative % of total turnover at absolute band endpoints
+#’
+#’ E.g. with bands = c(0,10,20), returns % at HFP=0,10,20.
+#’
+#’ @param c1,c2,c3 Numeric coefficients.
+#’ @param k1,k2,k3 Numeric knot positions (min, median, max).
+#’ @param bands    Numeric vector of absolute predictor values.
+#’ @param PSAMPLE  Integer. Grid resolution (default 500).
+#’
+#’ @return A tibble with columns:
+#’   \item{band_end}{Band endpoint (e.g. HFP value)}
+#’   \item{bnd_pct}{Cumulative % of total turnover at that endpoint}
+#’ @export
+pct_by_bands <- function(c1, c2, c3,
+                         k1, k2, k3,
+                         bands   = c(0, 10, 20, 30, 40),
+                         PSAMPLE = 500) {
+  curve <- ispline_curve_row(k1, k2, k3, c1, c2, c3, PSAMPLE)
+  total <- dplyr::last(curve$y)
+  tibble::tibble(
+    band_end = bands,
+    bnd_pct  = 100 * purrr::map_dbl(bands, function(b) {
+      idx <- which.min(abs(curve$x - b))
+      curve$y[idx] / total
+    })
+  )
 }
 
 #' @title Count Dataset Directions
@@ -135,8 +248,8 @@ make_tab <- function(x, pred) {
       s2.yCoord = "s2.y"
     ) %>%
     tibble::column_to_rownames("grp") %>%
-    dplyr::select(-s2, -s1) %>%
-    tidyr::drop_na()
+    dplyr::select(-s2, -s1) #%>%
+    #tidyr::drop_na()
   class(gdmTab) <- c("gdmData", "data.frame")
   return(gdmTab)
 }
@@ -148,6 +261,7 @@ make_tab <- function(x, pred) {
 #' @param pred Dataframe of predictor variables.
 #' @return A list containing BBGDM models for differentiation and homogenization.
 run_bbgdm <- function(x, pred) {
+  
   data_dissim <- make_tab(x, pred)
   data_sim <- data_dissim %>%  mutate(distance = 1 - distance)
   
@@ -159,7 +273,7 @@ run_bbgdm <- function(x, pred) {
       knots = NULL,
       splines = NULL,
       boot = 1000,
-      ncores = 6
+      ncores = 1
     )
   model_sim <-
     bbgdm(
@@ -168,7 +282,7 @@ run_bbgdm <- function(x, pred) {
       knots = NULL,
       splines = NULL,
       boot = 1000,
-      ncores = 6
+      ncores = 1
     )
   
   model <-
@@ -276,7 +390,7 @@ bb_apply <- function(x, nsites, data, geo, splines, knots) {
   wij <- wij[upper.tri(wij)]
   tmp <- data
   tmp$weights <- wij
-  x <- gdm::gdm(tmp,
+  x <- gdm::gdm(drop_na(tmp),
                 geo = geo,
                 splines = splines,
                 knots = knots)
@@ -863,3 +977,231 @@ negexp <- function() {
     class = "link-glm"
   )
 }
+
+#’ Build a single I‐spline curve for one predictor (BBGDM)
+#’
+#’ Calls the internal GDM C routine to get the fitted spline values for
+#’ a three-knot I-spline, then returns the (x,y) curve.
+#’
+#’ @param k1,k2,k3 Numeric. The three knot positions (min, median, max).
+#’ @param c1,c2,c3 Numeric. The corresponding I-spline coefficients.
+#’ @param PSAMPLE Integer. Number of equally-spaced x points (default 200).
+#’
+#’ @return A tibble with columns:
+#’   \item{x}{Predictor values, from k1→k3.}
+#’   \item{y}{Cumulative turnover (I-spline sum at each x).}
+#’
+#’ @examples
+#’ \dontrun{
+#’   curve <- ispline_curve_row(0, 10, 20, 0.3, 0.5, 0.2)
+#’   plot(curve$x, curve$y, type="l")
+#’ }
+#’ @export
+ispline_curve_row <- function(k1, k2, k3,
+                              c1, c2, c3,
+                              PSAMPLE = 200) {
+  preddata <- numeric(PSAMPLE)
+  out <- .C("GetPredictorPlotData",
+            pdata      = as.double(preddata),
+            as.integer(PSAMPLE),
+            as.double(c(c1, c2, c3)),
+            as.double(c(k1, k2, k3)),
+            as.integer(3),
+            PACKAGE    = "gdm")
+  x <- seq(k1, k3, length.out = PSAMPLE)
+  y <- out$pdata
+  tibble::tibble(x = x, y = y)
+}
+
+
+#’ Classify an I-spline curve’s shape via two-segment slope logic
+#’
+#’ Splits the first derivative into three equal sections, computes their
+#’ means, then exhaustively maps the pair of adjacent‐leg comparisons
+#’ (down, flat, up) to one of five shapes.
+#’
+#’ @param c1,c2,c3 Numeric coefficients for the I-spline basis functions.
+#’ @param k1,k2,k3 Numeric knot positions (min, median, max) for the predictor.
+#’ @param PSAMPLE Integer grid resolution (default 200).
+#’ @param rel_tol Numeric ∈ [0,1], relative tolerance on slope differences.
+#’ @param tail_cut Numeric ∈ (0,1], fraction of derivative to keep (1 = no trim).
+#’
+#’ @return A character scalar:  
+#’   “Absent”, “Linear”, “Exponential”, “Saturating”, “Revlog”, or “Uncertain”.
+#’
+#’ @examples
+#’ \dontrun{
+#’   classify_shapes(0.3, 0.5, 0.2, 0, 10, 20)
+#’ }
+#’ @export
+classify_shapes <- function(c1, c2, c3,
+                            k1, k2, k3,
+                            PSAMPLE  = 200,
+                            rel_tol  = 0.05,
+                            tail_cut = 1) {
+  if (c1 == 0 && c2 == 0 && c3 == 0) return("Absent")
+  pd <- ispline_curve_row(k1, k2, k3, c1, c2, c3, PSAMPLE)
+  d  <- diff(pd$y) / diff(pd$x)
+  L  <- length(d)
+  if (tail_cut < 1) {
+    drop <- floor(((1 - tail_cut) / 2) * L)
+    d    <- d[(drop + 1):(L - drop)]
+    L    <- length(d)
+  }
+  t3  <- floor(L / 3)
+  s1  <- mean(d[       1:t3       ])
+  s2  <- mean(d[(t3+1):(2*t3)     ])
+  s3  <- mean(d[(2*t3+1):     L   ])
+  tol <- rel_tol * max(abs(s1), abs(s2), abs(s3))
+  
+  eq12 <- abs(s1 - s2) <= tol
+  eq23 <- abs(s2 - s3) <= tol
+  lt12 <- (s2 - s1)  > tol
+  gt12 <- (s1 - s2)  > tol
+  lt23 <- (s3 - s2)  > tol
+  gt23 <- (s2 - s3)  > tol
+  
+  shape <- dplyr::case_when(
+    eq12 & eq23             ~ "Linear",
+    lt12 & lt23             ~ "Exponential",
+    gt12 & gt23             ~ "Saturating",
+    gt12 & lt23             ~ "Revlog",
+    eq12 & lt23             ~ "Exponential",
+    lt12 & eq23             ~ "Exponential",
+    eq12 & gt23             ~ "Saturating",
+    gt12 & eq23             ~ "Saturating",
+    lt12 & gt23             ~ "Saturating",
+    TRUE                     ~ "Uncertain"
+  )
+  shape
+}
+
+
+#’ Helper: choose knots based on predictor name
+#’
+#’ @param predictor  Character. “hfp…” or “het…” prefix.
+#’ @param hfp_min    Numeric. Minimum of HFP range.
+#’ @param hfp_med    Numeric. Median of HFP range.
+#’ @param hfp_max    Numeric. Maximum of HFP range.
+#’ @param het_min    Numeric. Minimum of HET range.
+#’ @param het_med    Numeric. Median of HET range.
+#’ @param het_max    Numeric. Maximum of HET range.
+#’ @return Numeric vector c(k1,k2,k3).
+#’ @noRd
+get_knots <- function(predictor,
+                      hfp_min, hfp_med, hfp_max,
+                      het_min, het_med, het_max) {
+  if (stringr::str_detect(unique(predictor), "^het")) {
+    c(het_min, het_med, het_max)
+  } else {
+    c(hfp_min, hfp_med, hfp_max)
+  }
+}
+
+#’ Classify one bootstrap by predictor (hfp or het)
+#’
+#’ @inheritParams classify_shapes
+#’ @param predictor   Character. “hfp_…” or “het_…”.
+#’ @param hfp_min, hfp_median, hfp_max  Numeric HFP knots.
+#’ @param het_min, het_median, het_max  Numeric HET knots.
+#’ @return Character. One of “Absent”, “Linear”, “Exponential”, “Saturating”, “Revlog”, “Uncertain”.
+#’ @export
+classify_predictor_row <- function(predictor,
+                                   c1, c2, c3,
+                                   hfp_min, hfp_median, hfp_max,
+                                   het_min, het_median, het_max,
+                                   PSAMPLE  = 200,
+                                   rel_tol  = 0.05,
+                                   tail_cut = 1) {
+  knots <- get_knots(predictor,
+                     hfp_min, hfp_median, hfp_max,
+                     het_min, het_median, het_max)
+  classify_shapes(c1, c2, c3,
+                  knots[1], knots[2], knots[3],
+                  PSAMPLE  = PSAMPLE,
+                  rel_tol  = rel_tol,
+                  tail_cut = tail_cut)
+}
+
+#’ Calculate cumulative % at fixed fractions for hfp/het, returning a named vector
+#’
+#’ @param predictor   Character. “hfp…” or “het…”.
+#’ @param c1,c2,c3    Numeric. I‐spline coefficients.
+#’ @param hfp_min, hfp_median, hfp_max  Numeric HFP knots.
+#’ @param het_min, het_median, het_max  Numeric HET knots.
+#’ @param props       Numeric vector of fractions (default c(0.25,0.5,0.75)).
+#’ @param PSAMPLE     Integer grid resolution (default 500).
+#’ @return Named numeric vector of length length(props), e.g.
+#’   `c(q_25 = …, q_50 = …, q_75 = …)`.
+#’ @export
+pct_by_props_predictor <- function(predictor,
+                                   c1, c2, c3,
+                                   hfp_min, hfp_median, hfp_max,
+                                   het_min, het_median, het_max,
+                                   props   = c(0.25, 0.5, 0.75,1),
+                                   PSAMPLE = 500) {
+  # select the right knots
+  if (stringr::str_detect(unique(predictor), "^het")) {
+    k <- c(het_min, het_median, het_max)
+  } else {
+    k <- c(hfp_min, hfp_median, hfp_max)
+  }
+  # build the I-spline curve
+  df   <- ispline_curve_row(k[1], k[2], k[3], c1, c2, c3, PSAMPLE)
+  total <- dplyr::last(df$y)
+  # compute cumulative pct at each prop
+  vals <- purrr::map_dbl(props, function(p) {
+    x0  <- k[1] + p * (k[3] - k[1])
+    idx <- which.min(abs(df$x - x0))
+    df$y[idx] / total * 100
+  })
+  # name them q_25, q_50, q_75, ...
+  names(vals) <- paste0("q_", props * 100)
+  vals
+}
+
+
+#’ Calculate incremental % gains over four equal bands for hfp/het, returning a named vector
+#’
+#’ @param predictor   Character. “hfp…” or “het…”.
+#’ @param c1,c2,c3    Numeric. I‐spline coefficients.
+#’ @param hfp_min, hfp_median, hfp_max  Numeric HFP knots.
+#’ @param het_min, het_median, het_max  Numeric HET knots.
+#’ @param bands_hfp   Numeric vector (default c(0,10,20,30,40)) of HFP breakpoints.
+#’ @param bands_het   Numeric vector (default c(0,0.5,1,1.5,2)) of HET breakpoints.
+#’ @param PSAMPLE     Integer grid resolution (default 500).
+#’ @return Named numeric vector of length length(breaks)-1, e.g.
+#’   `c(b1 = …, b2 = …, b3 = …, b4 = …)`.
+#’ @export
+pct_by_bands_predictor <- function(predictor,
+                                   c1, c2, c3,
+                                   hfp_min, hfp_median, hfp_max,
+                                   het_min, het_median, het_max,
+                                   bands_hfp = c(10, 20, 30, 40),
+                                   bands_het = c(0.5, 1, 1.5, 2),
+                                   PSAMPLE   = 500) {
+  # pick knots and breaks
+  if (stringr::str_detect(unique(predictor), "^het")) {
+    k     <- c(het_min, het_median, het_max)
+    breaks <- bands_het
+  } else {
+    k     <- c(hfp_min, hfp_median, hfp_max)
+    breaks <- bands_hfp
+  }
+  # build the I-spline curve
+  df    <- ispline_curve_row(k[1], k[2], k[3], c1, c2, c3, PSAMPLE)
+  total <- dplyr::last(df$y)
+  # cumulative pct at each breakpoint
+  cum  <- purrr::map_dbl(breaks, function(b) {
+    idx <- which.min(abs(df$x - b))
+    df$y[idx] / total * 100
+  })
+
+  # name them b1, b2, b3, ...
+  names(cum) <- paste0("b", seq_along(cum))
+  cum
+}
+
+
+
+

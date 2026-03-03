@@ -585,62 +585,6 @@ grid_het_traits <- datagrid(
   het_trials = 1
 )
 
-compare_shape(
-  model_base_hfp_species,
-  grid_hfp_species
-)
-
-# |.category                |     .epred|     .lower|     .upper|
-# |:------------------------|----------:|----------:|----------:|
-# |exponential - absent     | -0.1498571| -0.2530423| -0.0502986|
-# |revlog - absent          | -0.2462761| -0.3295768| -0.1729792|
-# |revlog - exponential     | -0.0996516| -0.1842164| -0.0185743|
-# |revlog - saturating      | -0.0919647| -0.1557749| -0.0256309|
-# |saturating - absent      | -0.1551497| -0.2306059| -0.0681635|
-# |saturating - exponential | -0.0081839| -0.1001608|  0.0797620|
-
-compare_shape(
-  model_base_hfp_traits,
-  grid_hfp_traits
-)
-
-# |.category                |     .epred|     .lower|     .upper|
-# |:------------------------|----------:|----------:|----------:|
-# |exponential - absent     |  0.0194905| -0.0555846|  0.0982362|
-# |revlog - absent          | -0.0978465| -0.1900776| -0.0207790|
-# |revlog - exponential     | -0.1192972| -0.2161064| -0.0231896|
-# |revlog - saturating      | -0.1740355| -0.2501104| -0.0993366|
-# |saturating - absent      |  0.0734508|  0.0004250|  0.1666688|
-# |saturating - exponential |  0.0535876| -0.0503984|  0.1613838|
-
-compare_shape(
-  model_base_het_species,
-  grid_het_species
-)
-
-# |.category                |     .epred|     .lower|     .upper|
-# |:------------------------|----------:|----------:|----------:|
-# |exponential - absent     |  0.0854804|  0.0170618|  0.1534742|
-# |revlog - absent          | -0.0517063| -0.0928446| -0.0103914|
-# |revlog - exponential     | -0.1353334| -0.2218299| -0.0470283|
-# |revlog - saturating      | -0.2689518| -0.3569478| -0.1835213|
-# |saturating - absent      |  0.2191866|  0.1395471|  0.2835925|
-# |saturating - exponential |  0.1335188|  0.0001094|  0.2641538|
-
-compare_shape(
-  model_base_het_traits,
-  grid_het_traits
-)
-
-# |.category                |     .epred|     .lower|     .upper|
-# |:------------------------|----------:|----------:|----------:|
-# |exponential - absent     |  0.1648017|  0.0733641|  0.2545385|
-# |revlog - absent          | -0.0555173| -0.1004087| -0.0141831|
-# |revlog - exponential     | -0.2214001| -0.3132475| -0.1220499|
-# |revlog - saturating      | -0.0929100| -0.1839139|  0.0032229|
-# |saturating - absent      |  0.0365118| -0.0474154|  0.1311994|
-# |saturating - exponential | -0.1307026| -0.2573557|  0.0019898|
-
 
 species_hfp_ecosystem <-
   compare_direction(
@@ -897,25 +841,12 @@ fig_4a <-
       plot.margin = margin(3, 0, 3, 0, unit="mm"),
       legend.position="none",
       plot.tag = element_text(face="bold",size=14))+
-  labs(x = "Human pressure gradient", y = "Community turnover", tag="a") +
+  labs(x = "Human pressure gradient", y = "Species/Trait replacement", tag="a") +
   scale_y_continuous(breaks = seq(0, 1, 1), limits = c(0, 1.5)) +
   guides(x = ggplot2::guide_axis(cap = TRUE),
          y = ggplot2::guide_axis(cap = TRUE)) +
   scale_x_continuous(breaks = seq(0, 3, length.out = 5), labels = c("0", "", "", "", "1"), limits = c(0, 3)) +
   theme(plot.margin = margin(l = 2, t = 2, b = 2))  # Add margin to improve layout aesthetics
-
-
-compare_shape <- function(model, grid, width = 0.80){
-  
-  epred_draws(model, newdata = grid, re_formula = NA) %>%
-    group_by(.draw, .category) %>%
-    summarise(.epred = mean(.epred), .groups = "drop") %>%
-    compare_levels(.epred, by = .category) %>%
-    # posterior summary
-    median_hdci(.epred, .width = .8) |> 
-    select(-.point, -.interval,-.width) |> 
-    kableExtra::kable()
-}
 
 
 # Prepare the data
@@ -954,8 +885,8 @@ fig_4b <- ggplot(heatmap_raw_shapes, aes(x = Traits, y = Species, fill = n)) +
     name = "Number of datasets"
   ) +
   labs(
-    x = "Functional turnover",
-    y = "Taxonomic turnover",
+    x = "Trait replacement",
+    y = "Species replacement",
     tag="b"
   ) +
   ggplot2::theme_void(base_family = "sans", base_size = 12) +
@@ -979,7 +910,9 @@ fig_4b <- ggplot(heatmap_raw_shapes, aes(x = Traits, y = Species, fill = n)) +
   )
 
 
+ecosystem_type_colors<- c("Freshwater" = "#118ab2","Terrestrial"= "#06d6a0")
 direction_colors = c("Differentiation" = "#ff7f32","Homogenisation" = "#9f5cc0")  
+land_use_colors<-c("Agriculture"="#a36627","Forest"="#848c04","Urban"="#1c1c0c","Multiple"="#dc7c5c")
 
 #####
 # HUMAN FOOTPRINT
@@ -997,7 +930,7 @@ hfp_species_eco <-
   group_by(.draw, ecosystem_type, direction, .category) |>
   summarise(.epred = mean(.epred), .groups = "drop") |>
   mutate(
-    facet = "Taxonomic turnover",
+    facet = "Species",
     class = "Ecosystem type",
     Predictor = ecosystem_type,
     response = "Human Footprint",
@@ -1012,7 +945,7 @@ hfp_traits_eco <-
   group_by(.draw, ecosystem_type, direction, .category) |>
   summarise(.epred = mean(.epred), .groups = "drop") |>
   mutate(
-    facet = "Functional turnover",
+    facet = "Traits",
     class = "Ecosystem type",
     Predictor = ecosystem_type,
     response = "Human Footprint"
@@ -1030,7 +963,7 @@ hfp_species_land <-
   group_by(.draw, main_land_use_type, direction, .category) |>
   summarise(.epred = mean(.epred), .groups = "drop") |>
   mutate(
-    facet = "Taxonomic turnover",
+    facet = "Species",
     class = "Main land use type",
     Predictor = main_land_use_type,
     response = "Human Footprint"
@@ -1045,7 +978,7 @@ hfp_traits_land <-
   group_by(.draw, main_land_use_type, direction, .category) |>
   summarise(.epred = mean(.epred), .groups = "drop") |>
   mutate(
-    facet = "Functional turnover",
+    facet = "Traits",
     class = "Main land use type",
     Predictor = main_land_use_type,
     response = "Human Footprint"
@@ -1066,7 +999,7 @@ het_species_eco <-
   group_by(.draw, ecosystem_type, direction, .category) |>
   summarise(.epred = mean(.epred), .groups = "drop") |>
   mutate(
-    facet = "Taxonomic turnover",
+    facet = "Species",
     class = "Ecosystem type",
     Predictor = ecosystem_type,
     response = "Habitat Heterogeneity"
@@ -1081,7 +1014,7 @@ het_traits_eco <-
   group_by(.draw, ecosystem_type, direction, .category) |>
   summarise(.epred = mean(.epred), .groups = "drop") |>
   mutate(
-    facet = "Functional turnover",
+    facet = "Traits",
     class = "Ecosystem type",
     Predictor = ecosystem_type,
     response = "Habitat Heterogeneity"
@@ -1099,7 +1032,7 @@ het_species_land <-
   group_by(.draw, main_land_use_type, direction, .category) |>
   summarise(.epred = mean(.epred), .groups = "drop") |>
   mutate(
-    facet = "Taxonomic turnover",
+    facet = "Species",
     class = "Main land use type",
     Predictor = main_land_use_type,
     response = "Habitat Heterogeneity"
@@ -1114,7 +1047,7 @@ het_traits_land <-
   group_by(.draw, main_land_use_type, direction, .category) |>
   summarise(.epred = mean(.epred), .groups = "drop") |>
   mutate(
-    facet = "Functional turnover",
+    facet = "Traits",
     class = "Main land use type",
     Predictor = main_land_use_type,
     response = "Habitat Heterogeneity"
@@ -1135,46 +1068,132 @@ contrasts_shape <-
     draw = .draw,
     shape = .category,
     probability = .epred
+  )
+
+
+fig_4c <- contrasts_shape |>  
+  select(draw, response, shape,facet,class,Predictor, direction, probability) |> 
+  nest(data=c(draw, shape, direction,probability)) |> 
+  mutate(results = purrr::map(data, regime_test,.80)) |>
+  tidyr::unnest(results) |> 
+  mutate(
+    prob_lab = sprintf(" %.2f", regime_probability)
   ) |> 
-  select(draw,facet,response,class,Predictor,direction,shape,probability) |> 
-  mutate(facet = factor(facet, levels=c("Taxonomic turnover", "Functional turnover")))
+ ggplot(aes(x = Predictor, y = shape)) +
+  # centered label
+  geom_label(
+    aes(label = glue::glue("{prob_lab}"), colour = direction),
+    size=3,
+    hjust=.5,
+    fill = "white",
+  ) +
+  ggh4x::facet_nested(
+    response   ~ facet +class ,
+    scales = "free_x",
+    space  = "free_x",
+    strip = strip_nested(
+      text_y = elem_list_text(face = "bold", size = c(10, 9)),
+      by_layer_y = TRUE,
+      text_x = elem_list_text(face = "bold", size = c(10, 9)),
+      by_layer_x = TRUE
+    )
+  ) +
+  
+  scale_colour_manual(
+    values = direction_colors
+  ) +
+  
+  #  scale_x_continuous(limits = c(0.84, 1.12), expand = c(0,0)) +
+  theme_bw(base_family = "sans", base_size = 12) +
+  theme(
+    strip.text.x =  element_text(face="bold",margin=margin(t=5)),
+    strip.text.y = element_text(size=10,face="bold",angle=270, margin=margin(l=5)),
+    axis.title.x       = element_blank(),
+    axis.text.y        = element_text(size = 10, hjust = 1),
+    axis.text.x        = ggtext::element_markdown(size = 8, margin=margin(t=3),angle=30,vjust=1, hjust=1),
+    axis.title.y       = element_blank(),
+    axis.line.x        = element_line(color = "grey20", linewidth = 0.1),
+    axis.ticks.x       = element_line(color = "grey20", linewidth = 0.1),
+    axis.ticks.length  = unit(0.2, "lines"),
+    plot.tag           = element_text(face = "bold", size = 14),
+    panel.spacing.x = unit(2,"lines"),
+    plot.margin = margin(0,0,0,0),
+    legend.position="bottom",
+    legend.title = element_text(face="bold"),
+    strip.background = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect_round(
+      fill = NA, 
+      color = "black", 
+      radius = unit(0.5, "cm") # Controla o arredondamento
+    )
+  ) +
+  guides(
+    x = guide_axis(cap = TRUE)
+  ) + labs(
+    colour="Dominant direction",
+    tag="c")
 
-contrasts_shape |> 
-  filter(class == "Ecosystem type") |> 
-  group_by(draw,facet,response,shape) |> 
-  summarise(probability=mean(probability)) |> 
-  ungroup() |> 
-  group_split(facet,response) |> 
-  map(~ .x |> group_by(facet,response,shape) |>   median_hdci(probability,width=.8))
 
-# Summary:
-# Species × Habitat heterogeneity: mostly saturating.
-# Species × Human footprint: mostly absent.
-# Traits × Habitat heterogeneity: mostly exponential.
-# Traits × Human footprint: mostly saturating.
+Figure_4<- ((fig_4a/fig_4b) | wrap_elements(fig_4c)) + plot_layout(widths=c(.2,.8))
 
-fig_4c<-contrasts_shape |> 
-  filter(class == "Ecosystem type") |> 
-   mutate(shape = str_to_sentence(shape)) |> 
-   mutate(shape = gsub("Revlog","Reverse logistic",shape)) |> 
+ggsave(filename = here::here("S7_Model_outputs_figures_and_tables", "main_figures", "Figure_4.pdf"),
+       plot = Figure_4,
+       device = cairo_pdf,
+       width=11,height=9,units="in")
+
+
+#supplemantary material
+
+
+fig_new_supplemantary <- contrasts_shape |> 
+  mutate(shape = str_to_sentence(shape)) |> 
+  mutate(shape = gsub("Revlog","Reverse logistic",shape)) |> 
+  mutate(
+    Predictor = case_when(
+      Predictor == "Freshwater"  ~ "Freshwater (n=30)",
+      Predictor == "Terrestrial" ~ "Terrestrial (n=131)",
+      Predictor == "Agriculture" ~ "Agriculture (n=38)",
+      Predictor == "Forest"      ~ "Forest (n=56)",
+      Predictor == "Urban"       ~ "Urban (n=15)",
+      Predictor == "Multiple"    ~ "Multiple (n=52)",
+      TRUE                        ~ Predictor
+    ),
+    Predictor = factor(
+      Predictor,
+      levels = c(
+        "Freshwater (n=30)",
+        "Terrestrial (n=131)",
+        rev(c(
+          "Agriculture (n=38)",
+          "Forest (n=56)",
+          "Urban (n=15)",
+          "Multiple (n=52)"
+        ))
+      )
+    )
+  ) |> 
   mutate(response = factor(response,levels=c("Human Footprint","Habitat Heterogeneity"))) |> 
-  group_by(draw,facet,response, shape) |> 
-  summarise(probability=mean(probability)) |> 
-  ungroup() |> 
-ggplot(aes(y=shape,x=probability)) + 
-   ggstats::geom_stripped_rows(
-     aes(y = shape),
-     colour=NA,
-     odd  = "white",
-     even = "grey97",
-     xfrom = -Inf, xto = Inf
-   ) +
-  stat_slabinterval(.width=c(.8,.89,.95), fill = "black", slab_alpha=.5,
-                    point_interval="median_hdci", 
-                    normalize="panels",
-                    point_size = 1.2,      # smaller median point
-                    interval_size_range = c(.5,1))+    # thinner interval lines
-  facet_grid(response~facet)+
+  ggplot(aes(y=shape,x=probability,colour=direction, fill=direction))+
+  ggstats::geom_stripped_rows(
+    aes(y = shape),
+    colour=NA,
+    odd  = "white",
+    even = "grey90",
+    xfrom = -Inf, xto = Inf
+  ) +
+  stat_ccdfinterval(position="dodge", .width=c(.8,.89,.95), slab_alpha=.5) +
+  ggh4x::facet_nested(class+Predictor~facet+response, scales="free_y",space="free_y",
+                      # use strip_themed() instead of strip_nested()
+                      strip = strip_nested(
+                        # supply one size for the "class" layer, one for the "Predictor" layer
+                        text_y      = elem_list_text(size = c(10, 8)),
+                        by_layer_y = TRUE,
+                        text_x      = elem_list_text(size = c(10, 8)),
+                        by_layer_x = TRUE,
+                      ))+
+  scale_colour_manual(values=direction_colors)+
+  scale_fill_manual(values=direction_colors)+
   theme_void(base_family = "sans", base_size = 12) +
   theme(
     panel.grid.minor   = element_blank(),
@@ -1197,218 +1216,13 @@ ggplot(aes(y=shape,x=probability)) +
   ) +
   guides(
     x = guide_axis(cap = TRUE)
-  ) + labs(x = "Probability of turnover shape",
+  ) + labs(x = "Posterior predictions (Probability of observing a shape)",
+           colour="Relationship direction",
+           fill="Relationship direction",
            tag="c")+
   scale_x_continuous(limits=c(0,NA),
                      labels = scales::label_number(accuracy = 0.01)
   )
-
-
-annotations_p2 <- data.frame(
-  label = c(
-    "<span>&larr; Dissimilarity</span>",
-    "<span>Similarity &rarr;</span>"
-  ),
-  x      = rep(c(-0.01,  0.01),2),   # tweak these to your actual x‐limits
-  y      = c( 4.7,     4.7,4.7,4.7),   # y position above your points
-  angle  = c( 0,     0,0,0   ),
-  hjust  = c( 1,     0,1,0   ),
-  facet  = c("Taxonomic turnover", "Taxonomic turnover", "Functional turnover","Functional turnover")  # or repeat for "Trait replacement"
-) |> 
-  mutate(facet = factor(facet, levels=c("Taxonomic turnover", "Functional turnover")))
-  
-
-
-fig_4d<- contrasts_shape |> 
-   mutate(shape = str_to_sentence(shape)) |> 
-   mutate(shape = gsub("Revlog","Reverse logistic",shape)) |> 
-   filter(class == "Ecosystem type") |> 
-   mutate(response = factor(response,levels=c("Human Footprint","Habitat Heterogeneity"))) |> 
-   group_by(draw,facet,response, direction, shape) |> 
-   summarise(probability=mean(probability)) |> 
-   ungroup() |> 
-   pivot_wider(values_from = "probability",names_from = "direction") |> 
-   mutate(p_direction = Homogenisation-Differentiation) |> 
-   ggplot(aes(y=shape,x=p_direction)) + 
-   ggstats::geom_stripped_rows(
-     aes(y = shape),
-     colour=NA,
-     odd  = "white",
-     even = "grey97",
-     xfrom = -Inf, xto = Inf
-   ) +
-   stat_slab(
-     aes(fill = after_stat(ifelse(x >= 0,
-                                  "Homogenisation",
-                                  "Differentiation"))),
-     alpha = 1,
-     colour = NA,
-     normalize="panels",
-     height=0.6
-   ) +
-   stat_pointinterval(
-     point_interval = "median_hdci",
-     .width = c(.8, .89, .95),
-     point_size = 1.2,
-     interval_size_range = c(.5,1),
-     colour = "black"
-   )+
-  geom_richtext(
-    data = annotations_p2,
-    aes(x = x, y = y, label = label, angle = angle, hjust = hjust), 
-    size=convert_size(8),
-    label.color = NA,
-    fill=NA,
-    inherit.aes=FALSE
-  ) +
-  geom_vline(xintercept=0, linetype="11", linewidth=.5, colour = "gray40")+
-  scale_fill_manual(
-    name = "Turnover direction",
-    values = direction_colors,
-    breaks = c("Homogenisation", "Differentiation"),
-    labels = c("Similarity increase", "Dissimilarity increase")
-  )+
-     facet_grid(response~facet)+
-   theme_void(base_family = "sans", base_size = 12) +
-   theme(
-     panel.grid.minor   = element_blank(),
-     plot.background    = element_blank(),
-     panel.background =  element_blank(),
-     strip.text.x =  element_text(face="bold",margin=margin(b=10)),
-     strip.text.y = element_text(size=10,face="bold",angle=270, margin=margin(l=5)),
-     axis.title.x       = ggtext::element_markdown(face = "bold", size = 12, margin=margin(t=5)),
-     axis.text.y        = element_text(size = 10, hjust = 1),
-     axis.text.x        = ggtext::element_markdown(size = 8, margin=margin(t=3)),
-     axis.title.y       = element_blank(),
-     axis.line.x        = element_line(color = "grey20", linewidth = 0.1),
-     axis.ticks.x       = element_line(color = "grey20", linewidth = 0.1),
-     axis.ticks.length  = unit(0.2, "lines"),
-     plot.tag           = element_text(face = "bold", size = 14),
-     panel.spacing.x = unit(2,"lines"),
-     panel.spacing.y = unit(1, "lines"),
-     plot.margin = margin(0,0,0,0),
-     legend.position = c(0.5,.06),
-     legend.direction = "vertical",
-     legend.background = element_blank(),
-     legend.box.background = element_blank(),
-     legend.title = element_blank(),
-     legend.text = element_text(size = 8),
-     legend.title.position = "left",
-     legend.key.size = unit(0.6, "lines"),
-     legend.spacing.x = unit(0.4, "lines"),
-     legend.spacing.y = unit(0.2, "lines")
-   ) +
-   guides(
-     x = guide_axis(cap = TRUE),
-     fill = guide_legend(
-       title.position = "top",
-       keywidth = unit(0.6, "lines"),
-       keyheight = unit(0.6, "lines")
-     )
-   ) + labs(x = "Association of turnover shape with direction",
-            tag="d")+
-   scale_x_continuous(limits=c(NA,NA),
-                      labels = scales::label_number(accuracy = 0.01)
-   )+
-  coord_cartesian(clip = "off")
-
-
-Figure_4<- ((fig_4a/fig_4b) | (fig_4c/fig_4d)) + plot_layout(widths=c(.25,.75))
-
-ggsave(filename = here::here("S7_Model_outputs_figures_and_tables", "main_figures", "Figure_4.pdf"),
-       plot = Figure_4,
-       device = cairo_pdf,
-       width=11,height=9,units="in")
-
-
-# fig_4c<-contrasts_shape |> 
-#   mutate(shape = str_to_sentence(shape)) |> 
-#   mutate(shape = gsub("Revlog","Reverse logistic",shape)) |> 
-#   mutate(
-#     Predictor = case_when(
-#       Predictor == "Freshwater"  ~ "Freshwater (n=30)",
-#       Predictor == "Terrestrial" ~ "Terrestrial (n=131)",
-#       Predictor == "Agriculture" ~ "Agriculture (n=38)",
-#       Predictor == "Forest"      ~ "Forest (n=56)",
-#       Predictor == "Urban"       ~ "Urban (n=15)",
-#       Predictor == "Multiple"    ~ "Multiple (n=52)",
-#       TRUE                        ~ Predictor
-#     ),
-#     Predictor = factor(
-#       Predictor,
-#       levels = c(
-#         "Freshwater (n=30)",
-#         "Terrestrial (n=131)",
-#         rev(c(
-#           "Agriculture (n=38)",
-#           "Forest (n=56)",
-#           "Urban (n=15)",
-#           "Multiple (n=52)"
-#         ))
-#       )
-#     )
-#   ) |> 
-#   mutate(response = factor(response,levels=c("Human Footprint","Habitat Heterogeneity"))) |> 
-#   ggplot(aes(y=shape,x=probability,colour=direction, fill=direction))+
-#   ggstats::geom_stripped_rows(
-#     aes(y = shape),
-#     colour=NA,
-#     odd  = "white",
-#     even = "grey90",
-#     xfrom = -Inf, xto = Inf
-#   ) +
-#   stat_ccdfinterval(position="dodge", .width=c(.8,.89,.95), slab_alpha=.5) +
-#   ggh4x::facet_nested(class+Predictor~facet+response, scales="free_y",space="free_y",
-#                       # use strip_themed() instead of strip_nested()
-#                       strip = strip_nested(
-#                         # supply one size for the "class" layer, one for the "Predictor" layer
-#                         text_y      = elem_list_text(size = c(10, 8)),
-#                         by_layer_y = TRUE,
-#                         text_x      = elem_list_text(size = c(10, 8)),
-#                         by_layer_x = TRUE,
-#                       ))+
-#   scale_colour_manual(values=direction_colors)+
-#   scale_fill_manual(values=direction_colors)+
-#   theme_void(base_family = "sans", base_size = 12) +
-#   theme(
-#     panel.grid.minor   = element_blank(),
-#     plot.background    = element_blank(),
-#     panel.background =  element_blank(),
-#     strip.text.x =  element_text(face="bold",margin=margin(t=5)),
-#     strip.text.y = element_text(size=10,face="bold",angle=270, margin=margin(l=5)),
-#     axis.title.x       = ggtext::element_markdown(face = "bold", size = 12, margin=margin(t=5)),
-#     axis.text.y        = element_text(size = 10, hjust = 1),
-#     axis.text.x        = ggtext::element_markdown(size = 8, margin=margin(t=3)),
-#     axis.title.y       = element_blank(),
-#     axis.line.x        = element_line(color = "grey20", linewidth = 0.1),
-#     axis.ticks.x       = element_line(color = "grey20", linewidth = 0.1),
-#     axis.ticks.length  = unit(0.2, "lines"),
-#     plot.tag           = element_text(face = "bold", size = 14),
-#     panel.spacing.x = unit(2,"lines"),
-#     plot.margin = margin(0,0,0,0),
-#     legend.position="bottom",
-#     legend.title = element_text(face="bold")
-#   ) +
-#   guides(
-#     x = guide_axis(cap = TRUE)
-#   ) + labs(x = "Posterior predictions (Probability of observing a shape)",
-#            colour="Relationship direction",
-#            fill="Relationship direction",
-#            tag="c")+
-#   scale_x_continuous(limits=c(0,NA),
-#                      labels = scales::label_number(accuracy = 0.01)
-#   )
-# 
-# 
-# 
-# 
-# ggsave(filename = here::here("S7_Model_outputs_figures_and_tables", "main_figures", "Figure_4.pdf"),
-#        plot = Figure_4,
-#        device = cairo_pdf,
-#        width=11,height=9,units="in")
-
-
-#Interactions figure 
 
 posterior_plot_data_HFP <- generate_figure_data(model_base_hfp_species,model_base_hfp_traits, type="shape",draw_min=-5,draw_max=5) |> 
 mutate(response = "Human Footprint")  
@@ -1503,9 +1317,505 @@ plot_df <- bind_rows(draws_df, text_df) %>%
 
  
  
+ avg_predictions(best_model_species, variables="ecosystem_type", conf_level = .8)
+ 
+ # ecosystem_type Estimate 10.0 % 90.0 %
+ #     Terrestrial   -1.456 -1.710 -1.171
+ #     Freshwater    -0.315 -0.889  0.304
+ # 
+ # Type:  response 
+ 
+ 
+ avg_predictions(best_model_traits, variables="ecosystem_type", conf_level = .8)
+ 
+ 
+ # ecosystem_type Estimate 10.0 % 90.0 %
+ #   Terrestrial    0.622  0.457  0.787
+ # Freshwater     0.245 -0.130  0.616
+ # 
+ # Type:  response 
+ 
+ 
+ avg_predictions(model_base_hfp_species, variables = c("ecosystem_type","direction"),
+                 newdata = datagrid(newdata=model_base_hfp_species$data,
+                                    direction = unique,
+                                    ecosystem_type = unique,
+                                    main_land_use_type=unique,
+                                    hfp_trials=1), re_formula=NA,conf_level=0.8) 
+ 
+ # Group       direction ecosystem_type Estimate 10.0 % 90.0 %
+ # absent      Differentiation    Terrestrial   0.3988 0.3401  0.459
+ # absent      Homogenisation     Terrestrial   0.4173 0.3547  0.477
+ # absent      Differentiation    Freshwater    0.3841 0.3270  0.440
+ # absent      Homogenisation     Freshwater    0.3437 0.2863  0.398
+ # exponential Differentiation    Terrestrial   0.2906 0.2178  0.356
+ # exponential Homogenisation     Terrestrial   0.2905 0.2207  0.353
+ # exponential Differentiation    Freshwater    0.1759 0.1228  0.222
+ # exponential Homogenisation     Freshwater    0.1931 0.1438  0.245
+ # revlog      Differentiation    Terrestrial   0.0923 0.0594  0.119
+ # revlog      Homogenisation     Terrestrial   0.0805 0.0531  0.104
+ # revlog      Differentiation    Freshwater    0.1531 0.1062  0.197
+ # revlog      Homogenisation     Freshwater    0.2246 0.1625  0.277
+ # saturating  Differentiation    Terrestrial   0.2098 0.1652  0.256
+ # saturating  Homogenisation     Terrestrial   0.2039 0.1596  0.243
+ # saturating  Differentiation    Freshwater    0.2767 0.2272  0.331
+ # saturating  Homogenisation     Freshwater    0.2299 0.1866  0.276
+ 
+ avg_predictions(model_base_hfp_traits, variables = c("ecosystem_type","direction"),
+                 newdata = datagrid(newdata=model_base_hfp_traits$data,
+                                    direction = unique,
+                                    ecosystem_type = unique,
+                                    main_land_use_type=unique,
+                                    hfp_trials=1), re_formula=NA,conf_level=0.8) 
+ 
+ #        Group       direction ecosystem_type Estimate 10.0 % 90.0 %
+ # absent      Differentiation    Terrestrial   0.1781 0.1400 0.2147
+ # absent      Homogenisation     Terrestrial   0.2704 0.2214 0.3243
+ # absent      Differentiation    Freshwater    0.2157 0.1700 0.2630
+ # absent      Homogenisation     Freshwater    0.3285 0.2746 0.3839
+ # exponential Differentiation    Terrestrial   0.3241 0.2608 0.3969
+ # exponential Homogenisation     Terrestrial   0.3140 0.2489 0.3849
+ # exponential Differentiation    Freshwater    0.2055 0.1490 0.2580
+ # exponential Homogenisation     Freshwater    0.2350 0.1791 0.2925
+ # revlog      Differentiation    Terrestrial   0.1649 0.1071 0.2165
+ # revlog      Homogenisation     Terrestrial   0.1288 0.0834 0.1784
+ # revlog      Differentiation    Freshwater    0.2491 0.1785 0.3147
+ # revlog      Homogenisation     Freshwater    0.0585 0.0352 0.0823
+ # saturating  Differentiation    Terrestrial   0.3257 0.2736 0.3799
+ # saturating  Homogenisation     Terrestrial   0.2768 0.2228 0.3326
+ # saturating  Differentiation    Freshwater    0.3217 0.2681 0.3695
+ # saturating  Homogenisation     Freshwater    0.3701 0.3031 0.4329
+ 
+ avg_comparisons(model_base_hfp_species,  variables= c("direction"), by = c("ecosystem_type"),
+                 newdata = datagrid(newdata=model_base_hfp_species$data,
+                                    direction = unique,
+                                    ecosystem_type = unique,
+                                    main_land_use_type=unique,
+                                    hfp_trials=1), re_formula=NA,conf_level=0.8) 
+ 
+ #Species HFP
+ #       Group      Term ecosystem_type  Estimate   10.0 %    90.0 %
+ # absent      direction    Freshwater  -0.040387 -0.05482 -0.027027 * diff
+ # absent      direction    Terrestrial  0.018210  0.01214  0.024648 * hom
+ # exponential direction    Freshwater   0.016618  0.00845  0.025119 * hom
+ # exponential direction    Terrestrial  0.000193 -0.00670  0.006323
+ # saturating  direction    Freshwater  -0.046584 -0.05932 -0.034088 * diff
+ # saturating  direction    Terrestrial -0.005567 -0.01128 -0.000458 * diff
+ # revlog      direction    Freshwater   0.070476  0.05618  0.085277 * hom
+ # revlog      direction    Terrestrial -0.011669 -0.01820 -0.007385 * diff
+ 
+ avg_comparisons(model_base_hfp_traits, variables= c("direction"), by = c("ecosystem_type"),
+                 newdata = datagrid(newdata=model_base_hfp_traits$data,
+                                    direction = unique,
+                                    ecosystem_type = unique,
+                                    main_land_use_type=unique,
+                                    hfp_trials=1), re_formula=NA,conf_level=0.8) 
+ #Trait HFP
+ #       Group      Term ecosystem_type Estimate   10.0 %   90.0 %
+ # absent      direction    Freshwater   0.11242  0.09536  0.13146 * hom
+ # absent      direction    Terrestrial  0.09294  0.07680  0.10929 * hom
+ # exponential direction    Freshwater   0.02864  0.00386  0.05667 * hom
+ # exponential direction    Terrestrial -0.00887 -0.02492  0.00657
+ # saturating  direction    Freshwater   0.04722  0.02613  0.07507 * hom
+ # saturating  direction    Terrestrial -0.04819 -0.05368 -0.04176 *diff
+ # revlog      direction    Freshwater  -0.19043 -0.23985 -0.14804 * diff
+ # revlog      direction    Terrestrial -0.03554 -0.04651 -0.02602 * diff
+ 
+ avg_predictions(model_base_het_species, variables = c("ecosystem_type","direction"),
+                 newdata = datagrid(newdata=model_base_het_species$data,
+                                    direction = unique,
+                                    ecosystem_type = unique,
+                                    main_land_use_type=unique,
+                                    het_trials=1), re_formula=NA,conf_level=0.8) 
+
+ # Group       direction ecosystem_type Estimate 10.0 % 90.0 %
+ # absent      Differentiation    Terrestrial   0.1386 0.1243  0.153
+ # absent      Homogenisation     Terrestrial   0.2181 0.1993  0.236
+ # absent      Differentiation    Freshwater    0.2444 0.2224  0.264
+ # absent      Homogenisation     Freshwater    0.1381 0.1246  0.154
+ # exponential Differentiation    Terrestrial   0.3814 0.2938  0.467
+ # exponential Homogenisation     Terrestrial   0.2702 0.2010  0.333
+ # exponential Differentiation    Freshwater    0.2232 0.1572  0.285
+ # exponential Homogenisation     Freshwater    0.2092 0.1510  0.272
+ # revlog      Differentiation    Terrestrial   0.1783 0.1311  0.223
+ # revlog      Homogenisation     Terrestrial   0.1158 0.0842  0.145
+ # revlog      Differentiation    Freshwater    0.1478 0.1062  0.185
+ # revlog      Homogenisation     Freshwater    0.0914 0.0653  0.117
+ # saturating  Differentiation    Terrestrial   0.2948 0.2209  0.365
+ # saturating  Homogenisation     Terrestrial   0.3901 0.3268  0.456
+ # saturating  Differentiation    Freshwater    0.3772 0.2993  0.443
+ # saturating  Homogenisation     Freshwater    0.5566 0.4837  0.625
+ 
+ 
+ avg_predictions(model_base_het_traits, variables = c("ecosystem_type","direction"),
+                 newdata = datagrid(newdata=model_base_het_traits$data,
+                                    direction = unique,
+                                    ecosystem_type = unique,
+                                    main_land_use_type=unique,
+                                    het_trials=1), re_formula=NA,conf_level=0.8) 
+ 
+ 
+ # Group       direction ecosystem_type Estimate 10.0 % 90.0 %
+ # absent      Differentiation    Terrestrial   0.1586 0.1232  0.194
+ # absent      Homogenisation     Terrestrial   0.3264 0.2790  0.374
+ # absent      Differentiation    Freshwater    0.0963 0.0722  0.117
+ # absent      Homogenisation     Freshwater    0.2581 0.2192  0.303
+ # exponential Differentiation    Terrestrial   0.4638 0.3726  0.538
+ # exponential Homogenisation     Terrestrial   0.3330 0.2688  0.400
+ # exponential Differentiation    Freshwater    0.4208 0.3428  0.502
+ # exponential Homogenisation     Freshwater    0.2980 0.2274  0.357
+ # revlog      Differentiation    Terrestrial   0.1030 0.0696  0.131
+ # revlog      Homogenisation     Terrestrial   0.1112 0.0800  0.142
+ # revlog      Differentiation    Freshwater    0.2652 0.1960  0.326
+ # revlog      Homogenisation     Freshwater    0.1374 0.0993  0.175
+ # saturating  Differentiation    Terrestrial   0.2667 0.1890  0.345
+ # saturating  Homogenisation     Terrestrial   0.2208 0.1579  0.286
+ # saturating  Differentiation    Freshwater    0.2079 0.1441  0.275
+ # saturating  Homogenisation     Freshwater    0.2978 0.2213  0.378
  
  
  
+ #Direction x Ecosystem type
+ avg_comparisons(model_base_het_species,  variables= c("direction"), by = c("ecosystem_type"),
+                 newdata = datagrid(newdata=model_base_het_species$data,
+                                    direction = unique,
+                                    ecosystem_type = unique,
+                                    main_land_use_type=unique,
+                                    het_trials=1), re_formula=NA,conf_level=0.8) 
  
+ #Species HH
+ #       Group      Term ecosystem_type Estimate  10.0 %   90.0 %
+ # absent      direction    Freshwater   -0.1064 -0.1180 -0.09395
+ # absent      direction    Terrestrial   0.0803  0.0711  0.09040
+ # exponential direction    Freshwater   -0.0136 -0.0230 -0.00489
+ # exponential direction    Terrestrial  -0.1102 -0.1300 -0.08764
+ # saturating  direction    Freshwater    0.1779  0.1657  0.18956
+ # saturating  direction    Terrestrial   0.0939  0.0819  0.10284
+ # revlog      direction    Freshwater   -0.0565 -0.0745 -0.04263
+ # revlog      direction    Terrestrial  -0.0623 -0.0826 -0.04780
+ 
+ avg_comparisons(model_base_het_traits, variables= c("direction"), by = c("ecosystem_type"),
+                 newdata = datagrid(newdata=model_base_het_traits$data,
+                                    direction = unique,
+                                    ecosystem_type = unique,
+                                    main_land_use_type=unique,
+                                    het_trials=1), re_formula=NA,conf_level=0.8) 
+ #Trait HFP
+ #       Group      Term ecosystem_type Estimate   10.0 %  90.0 %
+ # absent      direction    Freshwater   0.16138  0.13880  0.1845
+ # absent      direction    Terrestrial  0.16764  0.15416  0.1789
+ # exponential direction    Freshwater  -0.12193 -0.14373 -0.0956
+ # exponential direction    Terrestrial -0.12959 -0.14769 -0.1075
+ # saturating  direction    Freshwater   0.08835  0.06977  0.1072
+ # saturating  direction    Terrestrial -0.04540 -0.06447 -0.0301
+ # revlog      direction    Freshwater  -0.12788 -0.15949 -0.1008
+ # revlog      direction    Terrestrial  0.00787  0.00303  0.0128
+ 
+ 
+ 
+ #Main land use type 
+ 
+ #model for direction alone, its a different one. (negative = diff, positive = hom)
+ avg_predictions(best_model_species, variables = "main_land_use_type", conf_level = .8)
+ 
+ # main_land_use_type Estimate 10.0 % 90.0 %
+ #        Multiple       -1.52 -2.037 -1.022
+ #        Agriculture    -1.30 -1.787 -0.765
+ #        Forest         -1.89 -2.374 -1.448
+ #        Urban           2.33  0.702  3.996
+ 
+ avg_predictions(best_model_traits, variables = "main_land_use_type",  conf_level = .8)
+ 
+ # main_land_use_type Estimate 10.0 % 90.0 %
+ #        Multiple       0.522  0.244  0.801
+ #        Agriculture    0.547  0.236  0.892
+ #        Forest         0.829  0.566  1.083
+ #        Urban         -0.365 -1.270  0.541
+ 
+avg_predictions(model_base_hfp_species, variables = c("main_land_use_type","direction"),
+                 newdata = datagrid(newdata=model_base_hfp_species$data,
+                                    direction = unique,
+                                    ecosystem_type = unique,
+                                    main_land_use_type=unique,
+                                    hfp_trials=1), re_formula=NA,conf_level=0.8) |> as_tibble() |> print(n=32)
+ 
+# A tibble: 32 × 6
+#    group       main_land_use_type direction     estimate conf.low conf.high
+#    <chr>       <fct>              <fct>            <dbl>    <dbl>     <dbl>
+#  1 absent      Multiple           Differentiat…   0.512    0.446     0.573 
+#  2 absent      Multiple           Homogenisati…   0.435    0.356     0.499 
+#  3 absent      Agriculture        Differentiat…   0.271    0.220     0.320 
+#  4 absent      Agriculture        Homogenisati…   0.452    0.386     0.507 
+#  5 absent      Forest             Differentiat…   0.320    0.271     0.378 
+#  6 absent      Forest             Homogenisati…   0.275    0.224     0.322 
+#  7 absent      Urban              Differentiat…   0.465    0.399     0.531 
+#  8 absent      Urban              Homogenisati…   0.361    0.296     0.421 
+#  9 exponential Multiple           Differentiat…   0.218    0.158     0.273 
+# 10 exponential Multiple           Homogenisati…   0.406    0.323     0.489 
+# 11 exponential Agriculture        Differentiat…   0.293    0.222     0.361 
+# 12 exponential Agriculture        Homogenisati…   0.136    0.0959    0.176 
+# 13 exponential Forest             Differentiat…   0.215    0.153     0.266 
+# 14 exponential Forest             Homogenisati…   0.187    0.135     0.239 
+# 15 exponential Urban              Differentiat…   0.207    0.150     0.263 
+# 16 exponential Urban              Homogenisati…   0.237    0.176     0.303 
+# 17 revlog      Multiple           Differentiat…   0.0913   0.0623    0.121 
+# 18 revlog      Multiple           Homogenisati…   0.0276   0.0174    0.0371
+# 19 revlog      Agriculture        Differentiat…   0.135    0.0931    0.175 
+# 20 revlog      Agriculture        Homogenisati…   0.187    0.134     0.235 
+# 21 revlog      Forest             Differentiat…   0.101    0.0661    0.130 
+# 22 revlog      Forest             Homogenisati…   0.118    0.0827    0.154 
+# 23 revlog      Urban              Differentiat…   0.162    0.106     0.206 
+# 24 revlog      Urban              Homogenisati…   0.279    0.202     0.343 
+# 25 saturating  Multiple           Differentiat…   0.171    0.134     0.210 
+# 26 saturating  Multiple           Homogenisati…   0.127    0.0902    0.156 
+# 27 saturating  Agriculture        Differentiat…   0.291    0.232     0.349 
+# 28 saturating  Agriculture        Homogenisati…   0.216    0.169     0.260 
+# 29 saturating  Forest             Differentiat…   0.356    0.293     0.418 
+# 30 saturating  Forest             Homogenisati…   0.412    0.339     0.472 
+# 31 saturating  Urban              Differentiat…   0.155    0.118     0.190 
+# 32 saturating  Urban              Homogenisati…   0.112    0.0802    0.138 
 
  
+ avg_predictions(model_base_hfp_traits, variables = c("main_land_use_type","direction"),
+                 newdata = datagrid(newdata=model_base_hfp_traits$data,
+                                    direction = unique,
+                                    ecosystem_type = unique,
+                                    main_land_use_type=unique,
+                                    hfp_trials=1), re_formula=NA,conf_level=0.8) |>  as_tibble() |> print(n=32)
+ 
+#     group       main_land_use_type direction       estimate conf.low conf.high
+#     <chr>       <fct>              <fct>              <dbl>    <dbl>     <dbl>
+#  1 absent      Multiple           Differentiation   0.233    0.191     0.282 
+#  2 absent      Multiple           Homogenisation    0.307    0.253     0.359 
+#  3 absent      Agriculture        Differentiation   0.234    0.184     0.288 
+#  4 absent      Agriculture        Homogenisation    0.216    0.177     0.264 
+#  5 absent      Forest             Differentiation   0.245    0.193     0.296 
+#  6 absent      Forest             Homogenisation    0.287    0.237     0.340 
+#  7 absent      Urban              Differentiation   0.0755   0.0514    0.101 
+#  8 absent      Urban              Homogenisation    0.387    0.326     0.458 
+#  9 exponential Multiple           Differentiation   0.286    0.222     0.354 
+# 10 exponential Multiple           Homogenisation    0.292    0.228     0.357 
+# 11 exponential Agriculture        Differentiation   0.195    0.139     0.242 
+# 12 exponential Agriculture        Homogenisation    0.270    0.204     0.332 
+# 13 exponential Forest             Differentiation   0.135    0.0948    0.172 
+# 14 exponential Forest             Homogenisation    0.286    0.222     0.351 
+# 15 exponential Urban              Differentiation   0.444    0.338     0.547 
+# 16 exponential Urban              Homogenisation    0.250    0.195     0.313 
+# 17 revlog      Multiple           Differentiation   0.0543   0.0326    0.0763
+# 18 revlog      Multiple           Homogenisation    0.0508   0.0309    0.0722
+# 19 revlog      Agriculture        Differentiation   0.210    0.137     0.278 
+# 20 revlog      Agriculture        Homogenisation    0.0973   0.0595    0.133 
+# 21 revlog      Forest             Differentiation   0.128    0.0810    0.176 
+# 22 revlog      Forest             Homogenisation    0.0762   0.0441    0.104 
+# 23 revlog      Urban              Differentiation   0.435    0.318     0.547 
+# 24 revlog      Urban              Homogenisation    0.149    0.0890    0.202 
+# 25 saturating  Multiple           Differentiation   0.421    0.344     0.487 
+# 26 saturating  Multiple           Homogenisation    0.343    0.276     0.405 
+# 27 saturating  Agriculture        Differentiation   0.351    0.291     0.416 
+# 28 saturating  Agriculture        Homogenisation    0.408    0.336     0.472 
+# 29 saturating  Forest             Differentiation   0.483    0.419     0.554 
+# 30 saturating  Forest             Homogenisation    0.341    0.271     0.399 
+# 31 saturating  Urban              Differentiation   0.0403   0.0278    0.0528
+# 32 saturating  Urban              Homogenisation    0.201    0.156     0.244 
+#  
+ avg_comparisons(model_base_hfp_species,  variables= c("direction"), by = c("main_land_use_type"),
+                 newdata = datagrid(newdata=model_base_hfp_species$data,
+                                    direction = unique,
+                                    ecosystem_type = unique,
+                                    main_land_use_type=unique,
+                                    hfp_trials=1), re_formula=NA,conf_level=0.8) 
+ 
+ #Species HFP
+#        Group      Term main_land_use_type Estimate   10.0 %  90.0 %
+#  absent      direction        Multiple     -0.0786 -0.10598 -0.0525
+#  absent      direction        Agriculture   0.1811  0.16140  0.2037
+#  absent      direction        Forest       -0.0441 -0.05480 -0.0344
+#  absent      direction        Urban        -0.1034 -0.12240 -0.0835
+#  exponential direction        Multiple      0.1881  0.16400  0.2149
+#  exponential direction        Agriculture  -0.1555 -0.18908 -0.1263
+#  exponential direction        Forest       -0.0269 -0.03540 -0.0194
+#  exponential direction        Urban         0.0295  0.01480  0.0431
+#  saturating  direction        Multiple     -0.0435 -0.05460 -0.0318
+#  saturating  direction        Agriculture  -0.0756 -0.09725 -0.0542
+#  saturating  direction        Forest        0.0554  0.04517  0.0653
+#  saturating  direction        Urban        -0.0409 -0.05248 -0.0278
+#  revlog      direction        Multiple     -0.0641 -0.08189 -0.0429
+#  revlog      direction        Agriculture   0.0502  0.03419  0.0655
+#  revlog      direction        Forest        0.0162  0.00942  0.0227
+#  revlog      direction        Urban         0.1146  0.09153  0.1389
+# 
+# Type:  response 
+# Comparison: mean(Homogenisation) - mean(Differentiation)
+
+avg_comparisons(model_base_hfp_traits, variables= c("direction"), by = c("main_land_use_type"),
+                 newdata = datagrid(newdata=model_base_hfp_traits$data,
+                                    direction = unique,
+                                    ecosystem_type = unique,
+                                    main_land_use_type=unique,
+                                    hfp_trials=1), re_formula=NA,conf_level=0.8) 
+ #Trait HFP
+ #       Group      Term main_land_use_type Estimate   10.0 %    90.0 %
+ # absent      direction        Multiple     0.07454  0.06387  8.67e-02
+ # absent      direction        Agriculture -0.01839 -0.03411 -2.86e-03
+ # absent      direction        Forest       0.04395  0.02691  6.33e-02
+ # absent      direction        Urban        0.31225  0.27054  3.58e-01
+ # exponential direction        Multiple     0.00600 -0.00327  1.59e-02
+ # exponential direction        Agriculture  0.07406  0.05639  9.08e-02
+ # exponential direction        Forest       0.15089  0.12467  1.79e-01
+ # exponential direction        Urban       -0.19055 -0.25173 -1.17e-01
+ # saturating  direction        Multiple    -0.07683 -0.08867 -6.62e-02
+ # saturating  direction        Agriculture  0.05706  0.03344  7.64e-02
+ # saturating  direction        Forest      -0.14209 -0.16458 -1.23e-01
+ # saturating  direction        Urban        0.16053  0.12575  1.94e-01
+ # revlog      direction        Multiple    -0.00354 -0.00729 -2.62e-05
+ # revlog      direction        Agriculture -0.11245 -0.14578 -7.67e-02
+ # revlog      direction        Forest      -0.05075 -0.07190 -3.27e-02
+ # revlog      direction        Urban       -0.28408 -0.34437 -2.19e-01
+
+# Type:  response 
+# Comparison: mean(Homogenisation) - mean(Differentiation)
+ 
+avg_predictions(model_base_het_species, variables = c("main_land_use_type","direction"),
+                 newdata = datagrid(newdata=model_base_het_species$data,
+                                    direction = unique,
+                                    ecosystem_type = unique,
+                                    main_land_use_type=unique,
+                                    het_trials=1), re_formula=NA,conf_level=0.8) |>  as_tibble() |>  print(n=32)
+ 
+# A tibble: 32 × 6
+#    group       main_land_use_type direction     estimate conf.low conf.high
+#    <chr>       <fct>              <fct>            <dbl>    <dbl>     <dbl>
+#  1 absent      Multiple           Differentiat…   0.139    0.125     0.155 
+#  2 absent      Multiple           Homogenisati…   0.194    0.172     0.214 
+#  3 absent      Agriculture        Differentiat…   0.167    0.151     0.183 
+#  4 absent      Agriculture        Homogenisati…   0.140    0.126     0.156 
+#  5 absent      Forest             Differentiat…   0.118    0.105     0.128 
+#  6 absent      Forest             Homogenisati…   0.158    0.142     0.174 
+#  7 absent      Urban              Differentiat…   0.342    0.309     0.374 
+#  8 absent      Urban              Homogenisati…   0.220    0.184     0.251 
+#  9 exponential Multiple           Differentiat…   0.435    0.334     0.518 
+# 10 exponential Multiple           Homogenisati…   0.352    0.264     0.433 
+# 11 exponential Agriculture        Differentiat…   0.272    0.195     0.344 
+# 12 exponential Agriculture        Homogenisati…   0.389    0.294     0.484 
+# 13 exponential Forest             Differentiat…   0.350    0.261     0.435 
+# 14 exponential Forest             Homogenisati…   0.178    0.120     0.237 
+# 15 exponential Urban              Differentiat…   0.152    0.103     0.196 
+# 16 exponential Urban              Homogenisati…   0.0398   0.0232    0.0548
+# 17 revlog      Multiple           Differentiat…   0.128    0.0897    0.162 
+# 18 revlog      Multiple           Homogenisati…   0.179    0.133     0.227 
+# 19 revlog      Agriculture        Differentiat…   0.187    0.136     0.232 
+# 20 revlog      Agriculture        Homogenisati…   0.0698   0.0498    0.0912
+# 21 revlog      Forest             Differentiat…   0.163    0.120     0.206 
+# 22 revlog      Forest             Homogenisati…   0.141    0.102     0.180 
+# 23 revlog      Urban              Differentiat…   0.174    0.128     0.220 
+# 24 revlog      Urban              Homogenisati…   0.0244   0.0154    0.0329
+# 25 saturating  Multiple           Differentiat…   0.292    0.221     0.367 
+# 26 saturating  Multiple           Homogenisati…   0.267    0.205     0.333 
+# 27 saturating  Agriculture        Differentiat…   0.366    0.290     0.440 
+# 28 saturating  Agriculture        Homogenisati…   0.396    0.310     0.482 
+# 29 saturating  Forest             Differentiat…   0.363    0.281     0.441 
+# 30 saturating  Forest             Homogenisati…   0.517    0.445     0.596 
+# 31 saturating  Urban              Differentiat…   0.323    0.262     0.386 
+# 32 saturating  Urban              Homogenisati…   0.714    0.660     0.760 
+#  
+ 
+avg_predictions(model_base_het_traits, variables = c("main_land_use_type","direction"),
+                 newdata = datagrid(newdata=model_base_het_traits$data,
+                                    direction = unique,
+                                    ecosystem_type = unique,
+                                    main_land_use_type=unique,
+                                    het_trials=1), re_formula=NA,conf_level=0.8) |> as_tibble() |>  print(n=32)
+ 
+ 
+# A tibble: 32 × 6
+#    group       main_land_use_type direction     estimate conf.low conf.high
+#    <chr>       <fct>              <fct>            <dbl>    <dbl>     <dbl>
+#  1 absent      Multiple           Differentiat…   0.199   0.156      0.241 
+#  2 absent      Multiple           Homogenisati…   0.177   0.138      0.216 
+#  3 absent      Agriculture        Differentiat…   0.0835  0.0616     0.102 
+#  4 absent      Agriculture        Homogenisati…   0.158   0.120      0.189 
+#  5 absent      Forest             Differentiat…   0.0418  0.0309     0.0514
+#  6 absent      Forest             Homogenisati…   0.172   0.133      0.208 
+#  7 absent      Urban              Differentiat…   0.186   0.141      0.229 
+#  8 absent      Urban              Homogenisati…   0.660   0.598      0.732 
+#  9 exponential Multiple           Differentiat…   0.407   0.320      0.476 
+# 10 exponential Multiple           Homogenisati…   0.340   0.259      0.407 
+# 11 exponential Agriculture        Differentiat…   0.474   0.389      0.552 
+# 12 exponential Agriculture        Homogenisati…   0.429   0.347      0.504 
+# 13 exponential Forest             Differentiat…   0.456   0.370      0.534 
+# 14 exponential Forest             Homogenisati…   0.365   0.284      0.437 
+# 15 exponential Urban              Differentiat…   0.430   0.343      0.510 
+# 16 exponential Urban              Homogenisati…   0.127   0.0896     0.164 
+# 17 revlog      Multiple           Differentiat…   0.138   0.0975     0.174 
+# 18 revlog      Multiple           Homogenisati…   0.149   0.103      0.188 
+# 19 revlog      Agriculture        Differentiat…   0.222   0.163      0.278 
+# 20 revlog      Agriculture        Homogenisati…   0.191   0.136      0.237 
+# 21 revlog      Forest             Differentiat…   0.279   0.211      0.346 
+# 22 revlog      Forest             Homogenisati…   0.145   0.102      0.184 
+# 23 revlog      Urban              Differentiat…   0.0967  0.0659     0.125 
+# 24 revlog      Urban              Homogenisati…   0.0126  0.00831    0.0163
+# 25 saturating  Multiple           Differentiat…   0.248   0.180      0.325 
+# 26 saturating  Multiple           Homogenisati…   0.324   0.247      0.413 
+# 27 saturating  Agriculture        Differentiat…   0.211   0.145      0.278 
+# 28 saturating  Agriculture        Homogenisati…   0.212   0.144      0.274 
+# 29 saturating  Forest             Differentiat…   0.213   0.149      0.285 
+# 30 saturating  Forest             Homogenisati…   0.308   0.227      0.390 
+# 31 saturating  Urban              Differentiat…   0.277   0.189      0.350 
+# 32 saturating  Urban              Homogenisati…   0.192   0.133      0.253
+  
+ 
+
+avg_comparisons(model_base_het_species,  variables= c("direction"), by = c("main_land_use_type"),
+                 newdata = datagrid(newdata=model_base_het_species$data,
+                                    direction = unique,
+                                    ecosystem_type = unique,
+                                    main_land_use_type=unique,
+                                    het_trials=1), re_formula=NA,conf_level=0.8) 
+ 
+ #Species HH
+ #       Group      Term main_land_use_type Estimate   10.0 %   90.0 %
+ # absent      direction        Multiple      0.0546  0.04544  0.06249
+ # absent      direction        Agriculture  -0.0270 -0.03785 -0.01643
+ # absent      direction        Forest        0.0413  0.03124  0.05121
+ # absent      direction        Urban        -0.1218 -0.15249 -0.09666
+ # exponential direction        Multiple     -0.0811 -0.09207 -0.06922
+ # exponential direction        Agriculture   0.1163  0.09256  0.14361
+ # exponential direction        Forest       -0.1720 -0.20193 -0.14375
+ # exponential direction        Urban        -0.1116 -0.14227 -0.07951
+ # saturating  direction        Multiple     -0.0240 -0.03570 -0.01048
+ # saturating  direction        Agriculture   0.0284  0.00391  0.04959
+ # saturating  direction        Forest        0.1516  0.13826  0.16459
+ # saturating  direction        Urban         0.3863  0.36592  0.40652
+ # revlog      direction        Multiple      0.0504  0.03788  0.06221
+ # revlog      direction        Agriculture  -0.1171 -0.14226 -0.08649
+ # revlog      direction        Forest       -0.0221 -0.03604 -0.00874
+ # revlog      direction        Urban        -0.1500 -0.18316 -0.10668
+
+avg_comparisons(model_base_het_traits, variables= c("direction"), by = c("main_land_use_type"),
+                 newdata = datagrid(newdata=model_base_het_traits$data,
+                                    direction = unique,
+                                    ecosystem_type = unique,
+                                    main_land_use_type=unique,
+                                    het_trials=1), re_formula=NA,conf_level=0.8) 
+ #Trait HFP
+#        Group      Term main_land_use_type  Estimate   10.0 %   90.0 %
+#  absent      direction        Multiple    -0.020951 -0.02881 -0.01152
+#  absent      direction        Agriculture  0.074590  0.05722  0.08816
+#  absent      direction        Forest       0.130404  0.10272  0.15947
+#  absent      direction        Urban        0.473465  0.44364  0.50649
+#  exponential direction        Multiple    -0.065827 -0.07624 -0.05529
+#  exponential direction        Agriculture -0.042621 -0.05617 -0.02994
+#  exponential direction        Forest      -0.091995 -0.11550 -0.06952
+#  exponential direction        Urban       -0.301024 -0.35326 -0.25082
+#  saturating  direction        Multiple     0.075802  0.06195  0.09005
+#  saturating  direction        Agriculture -0.000541 -0.00877  0.00793
+#  saturating  direction        Forest       0.093735  0.07356  0.11281
+#  saturating  direction        Urban       -0.083087 -0.11739 -0.04294
+#  revlog      direction        Multiple     0.011107  0.00126  0.02049
+#  revlog      direction        Agriculture -0.030908 -0.04517 -0.01789
+#  revlog      direction        Forest      -0.133768 -0.16148 -0.10276
+#  revlog      direction        Urban       -0.084176 -0.10863 -0.05579
+# 
+# Type:  response 
+# Comparison: mean(Homogenisation) - mean(Differentiation)
+

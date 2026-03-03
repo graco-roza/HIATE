@@ -10,7 +10,7 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=2000
 #SBATCH --mail-type=FAIL,ARRAY_TASKS
-#SBATCH --array=1-165%99
+#SBATCH --array=1-660%99
 # Load r-env-singularity
 module load r-env-singularity
 

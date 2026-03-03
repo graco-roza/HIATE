@@ -29,12 +29,6 @@
 #     correctly formatted.
 #'-----------------------------------------------------------------------------
 
-.libPaths(c("/projappl/project_2004932/project_rpackages_4.4.0", .libPaths()))
-
-# HPC cluster: get dataset index from environment variable (if applicable)
-slurm_arrayid <- Sys.getenv('SLURM_ARRAY_TASK_ID')
-ii <- as.numeric(slurm_arrayid)
-
 # Packages .............................................................................................................
 if (!require("pacman")) {
   install.packages("pacman")
@@ -56,6 +50,7 @@ calculate_trait_space_quality <- function(dist_matrix, pcoa_vectors, axes) {
 extract_dataset_chunks <- function(file_path) {
   # Read all lines
   lines <- readLines(file_path)
+  
   # Find all header line triplets
   header_starts <- c()
   dataset_names <- c()
@@ -83,7 +78,18 @@ extract_dataset_chunks <- function(file_path) {
   return(chunks)
 }
 
-blocks<-extract_dataset_chunks("/scratch/project_2004932/HIATE/S2_get_beta_diversity/Scripts/prepare_dataset_for_trait_analysis.R")
+blocks<-extract_dataset_chunks("S2_get_beta_diversity/Scripts/prepare_dataset_for_trait_analysis.R")
 
+  tryCatch(
+    {
+      eval(parse(text = blocks[[ii]]))
+      cat(glue("✅ Success: {names(blocks)[ii]}\n\n"))
+      TRUE
+    },
+    error = function(e) {
+      cat(glue("❌ Error in block {ii} ({names(blocks)[ii]}): {e$message}\n\n"))
+      failed <<- c(failed, name)
+      FALSE
+    }
+  )
 
-eval(parse(text = blocks[[ii]]))

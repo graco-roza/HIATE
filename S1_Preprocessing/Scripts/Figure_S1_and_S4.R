@@ -1,5 +1,5 @@
 #' ---
-#'   title: "Map and Dataset Features"
+#' title: "Map and Dataset Features"
 #' author: "Caio Graco-Roza"
 #' date: "5/14/2021"
 #' output: pdf_document
@@ -65,7 +65,7 @@ my_base_theme <- function() {
 }
 
 additional_features <- 
-  "S7_Synthesis_model/data/synthesis_data.xlsx" |>
+  "S6_Synthesis_model/data/synthesis_data_new.xlsx" |>
   readxl::read_xlsx() |>
   filter(!dataset %in% c("N67TTP","N78TTP","S47TTP")) |> 
   dplyr::mutate(
@@ -80,7 +80,6 @@ additional_features <-
     ,latitude.mean=abs(latitude.mean)
     ,direction = gsub("z","s",direction),
     ,direction= base::factor(direction, levels=c("differentiation", "homogenisation"))
-    ,buffer = base::factor(buffer, levels = c("1000", "1500", "2000"))
   )
 
 # Figure 1 (Map)
@@ -115,7 +114,6 @@ map_aquatic <- map +
   ) + 
   labs(title = "Freshwater sites")
 
-
 map_terrestrial <- map + 
   geom_point(
     data = dataset_features %>% filter(system %in% "terrestrial"),
@@ -134,8 +132,8 @@ spatial_extent <- additional_features |>
   scale_fill_manual(values = blue_green) +
   labs(x = " Spatial extent (Log<sub>10</sub> km)", y = "") +
   my_base_theme() +
-  scale_x_continuous(breaks=seq(-1,7,1)) +
-  guides(x = guide_axis_truncated(trunc_lower = -1, trunc_upper = 7)) 
+ # guide_axis(cap = TRUE)+
+  scale_x_continuous(breaks=seq(-1,7,1)) 
 
 species_richness <- additional_features |> 
   ggplot(aes(x = 10^species.number, fill = realm)) +
@@ -147,8 +145,6 @@ species_richness <- additional_features |>
   guides(x = guide_axis_truncated(trunc_lower = 0, trunc_upper = 1150)) 
 
 # Latitude
-
-
 
 latitude <- dataset_features |>
   mutate(system = factor(system, levels=c("aquatic", "terrestrial"))) |>
@@ -230,7 +226,7 @@ my_base_theme() +
         axis.line.y = element_line(color = "grey70", linewidth=0.1),
         axis.ticks.y = element_line(color = "grey70", linewidth=0.1),
         axis.ticks.length.y = unit(0.1, "lines"))+
-  scale_x_continuous(breaks=seq(0,12000,2000), limits=c(0,12000)) +
+  scale_x_continuous(breaks=seq(0,14000,2000), limits=c(0,14000)) +
   guides(x = guide_axis_truncated(trunc_lower = 0, trunc_upper = 12000),
          y = guide_axis_truncated(trunc_lower = function(x) x-0.2, trunc_upper = function(x) x+0.2))
 
@@ -265,44 +261,35 @@ disturbance <- dataset_features |>
     theme(plot.tag = element_text(face = "bold", size=8, hjust=1))
   
  
-#When saving the figures for submission to the Nature journal, it is recommended to use the following dimensions in millimeters (mm):
-#Single column width: Aim for a width of around 89 mm (or 3.5 inches) when saving figures for a single column layout. This ensures that the figure fits within the designated space for a single column in the journal.
-#Double column width: Aim for a width of around 183 mm (or 7.2 inches) when saving figures for a double column layout. This allows the figure to span the width of two columns in the journal.
+library(dplyr)
+library(tidyr)
+library(stringr)
+  
+land_use_colors <- c(Agriculture = "#a36627", Forest = "#848c04", Urban = "#1c1c0c", Multiple = "#dc7c5c")
+  
+  # Step 1: Get unique buffer used per dataset and predictor
+predictor_buffers<-read.csv("S1_Preprocessing/Miscellaneous/dataset_selected_buffer.csv") |> 
+  select(-var_name)
 
-ggsave(here("S8_Model_outputs_figures_and_tables", "extended_data", "Extended_Figure_1.pdf"), Extended_figure_1, device = cairo_pdf(), height = 150, width = 183, units="mm")
-
-land_use_colors<-c("#a36627","#848c04","#1c1c0c","#dc7c5c")
-
-hfp_distribution <- dataset_features |>
-  mutate(disturbance= factor(str_to_title(disturbance),levels =c("Agriculture","Forest","Urban","Multiple"))) |> 
-  ggplot(aes(x=hfp_1500, fill=disturbance)) +
-  geom_density(colour="white", show.legend=FALSE, alpha=.5, linewidth=.2) +
-  geom_density(aes(colour=disturbance), fill=NA, show.legend=FALSE, alpha=1, linewidth=.4) +
+  # Step 2: Pivot dataset_features to long format for matching
+long_features <- dataset_features %>%
+    select(dataset,site,disturbance, hfp_1000:het_2000) |> 
+    pivot_longer(cols = matches("^(hfp|modis|het)_\\d+$"),
+                 names_to = "var_name", values_to = "value") |> 
+  separate(var_name, into=c("predictor","buffer")) |> 
+  mutate(buffer = as.numeric(buffer))
+  
+Extended_figure_6<-long_features |> 
+  filter(predictor != "modis") |> 
+  mutate(predictor = stringr::str_replace_all(predictor, c("hfp" = "Human Footprint", "het" = "Habitat Heterogeneity"))) |> 
+  mutate(predictor = factor(predictor, levels=c("Human Footprint","Habitat Heterogeneity"))) |> 
+  mutate(disturbance = factor(stringr::str_to_title(disturbance), levels = rev(c("Agriculture","Forest","Urban","Multiple")))) |> 
+  ggplot(aes(y=disturbance,x=value, fill = disturbance)) +
+  ggridges::geom_density_ridges(colour="white", scale=1.2)+
+  facet_grid(~predictor, scales="free") + 
+  theme_bw()+
   scale_fill_manual(values=land_use_colors)+
-  scale_colour_manual(values=land_use_colors)+
-  facet_wrap(~disturbance, ncol=1)+
-  my_base_theme()+
-  scale_x_continuous(breaks=seq(0,50,10), limits=c(0,50)) +
-  guides(x = guide_axis_truncated(trunc_lower = 0, trunc_upper = 50)) 
+  labs(x="Human pressure value", y = "Main land use type")+theme(legend.position="none")
+  
+ggsave(here("S7_Model_outputs_figures_and_tables", "extended_data", "Extended_Figure_6.pdf"), Extended_figure_6, device = cairo_pdf, height = 150, width = 183, units="mm")
 
-library(ggridges)
-
-hfp_distribution <- dataset_features |>
-  mutate(disturbance = factor(str_to_title(disturbance), levels = c("Agriculture", "Forest", "Urban", "Multiple"))) |>
-  ggplot(aes(x = hfp_1500, y = disturbance, fill = disturbance)) +
-  geom_density_ridges(aes(fill = disturbance), colour = "white", show.legend = FALSE, linewidth = 0.4, scale=0.9) +
-  scale_fill_manual(values = land_use_colors) +
-  scale_colour_manual(values = land_use_colors) +
-  my_base_theme() +
-  theme(axis.title.y = ggtext::element_markdown(family = "sans", face = "bold", hjust = 0.5,  margin=margin(r=5), angle=90),
-        axis.text.y = element_markdown(family = "sans", color = "grey30", margin = margin(r = 2), hjust=1),
-        axis.line.y = element_line(color = "grey70", linewidth=0.1),
-        axis.ticks.y = element_line(color = "grey70", linewidth=0.1),
-        axis.ticks.length.y = unit(0.1, "lines"), 
-        plot.margin = margin(5,5,5,5))+
-  labs(y = "Main land use type", x = "Human Pressure") +
-  scale_x_continuous(breaks = seq(0, 50, 10), limits = c(0, 50)) +
-  guides(x = guide_axis_truncated(trunc_lower = 0, trunc_upper = 50))+
-  scale_y_discrete(limits = rev)
-
-ggsave(here("S8_Model_outputs_figures_and_tables", "extended_data", "Extended_Figure_4.pdf"), hfp_distribution, device = cairo_pdf, height = 40, width = 89, units="mm")

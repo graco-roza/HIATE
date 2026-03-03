@@ -71,14 +71,16 @@ slurm_arrayid <- Sys.getenv('SLURM_ARRAY_TASK_ID')
 # coerce the value to an integer
 ii <- as.numeric(slurm_arrayid)
 
+
 #' -----------------------------------------------------------------------------------------------------------------
 # @ run analysis ######
 #' -----------------------------------------------------------------------------------------------------------------
- 
+failed_datasets <- sort(c(152, 147, 158, 127, 27, 113, 107, 10, 6, 29, 95, 56, 70, 37, 96, 32, 43, 49, 94, 60, 31, 64, 77, 18))[-c(1:11)]
 
+for (ii in failed_datasets){
 files<-list.files("S1_Preprocessing/Raw_data")
 
-focal_dataset <- tools::file_path_sans_ext(files[ii])
+focal_dataset <- "N29FMI" #tools::file_path_sans_ext(files[ii])
 
 
   # read dataset info
@@ -98,21 +100,17 @@ focal_dataset <- tools::file_path_sans_ext(files[ii])
       drop_na()  %>% 
       mutate(site = as.character(site)) %>%
       get_predictors(focal_dataset)
-
-    data_clean$predictors <- data_predictors 
     
+    data_clean$predictors <- data_predictors 
     # save pre-processed data
-    saveRDS(object = data_clean, file = glue::glue("S1_Preprocessing/pre_processed/{focal_dataset}_clean.rds"))
+    saveRDS(object = data_clean, file = glue::glue("S1_Preprocessing/Processed/{focal_dataset}_clean.rds"))
     
     # remove objects from memory
-    rm(list = setdiff(ls(), "files"))
+
+   # rm(list = setdiff(ls(), "files"))
   }, error = function(e) {
     write(glue::glue("Error occurred in processing {focal_dataset}: {e}\n"), stdout())
   })
 
-
+}
 # -------------------------------------------------------------------------------------------------------------------
-
-
-
-

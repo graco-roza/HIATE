@@ -71,18 +71,18 @@ BAYES_SEED <- 1234   # Seed for reproducibility in Bayesian sampling
 # Load and preprocess data ####
 # Process data for testing dependency between species and traits
 # This relies on null model results from S5
-model_data <- process_model_data("S6_Synthesis_model/data/synthesis_data.xlsx", "convergence")
+model_data <- process_model_data("S6_Synthesis_model/data/synthesis_data_revision.xlsx", "convergence")
 
-
+model_data <- model_data |>  filter(beta_type == "Podani", metric_type == "abun")
 # Check for convergence in direction 
-#   model_data |>
-#   select(dataset,facet,direction) |>
-#   pivot_wider(names_from = facet, values_from = direction) |>
-#   janitor::tabyl(Species, Traits) |>
-#   adorn_percentages("row") %>%
-#   adorn_pct_formatting(digits = 2) %>%
-#   adorn_ns() |>
-#   kableExtra::kable(format = "rst")
+  # model_data |>
+  # select(dataset,facet,direction) |>
+  # pivot_wider(names_from = facet, values_from = direction) |>
+  # janitor::tabyl(Species, Traits) |>
+  # adorn_percentages("row") %>%
+  # adorn_pct_formatting(digits = 2) %>%
+  # adorn_ns() |>
+  # kableExtra::kable(format = "rst")
 
 # ===============  ===============  ==============
 # species/traits   differentiation  homogenisation
@@ -276,13 +276,21 @@ magnitude_comparison <- model_data |>
 # between Species and Traits across datasets. This test accounts for paired observations.
 # 
 # Uncomment to run the test:
-# rstatix::wilcox_test(
-#   data = model_data,
-#   magnitude ~ facet,
-#   paired = TRUE,
-#   alternative = "two.sided"
-# ) |>
-#   kableExtra::kable(format = "rst")
+rstatix::wilcox_test(
+  data = model_data %>%
+  #  filter(magnitude < 1.2) %>% 
+    group_by(dataset) %>%
+    filter(n_distinct(facet) == 2) %>% 
+    ungroup(),
+  magnitude ~ facet,
+  paired = TRUE,
+  alternative = "two.sided"
+) |>
+  kableExtra::kable(format = "rst")
+
+model_data |> 
+  group_by(facet) |> 
+  summarise(mean_mag = mean(magnitude), sd_mag=sd(magnitude))
 
 # Example output of the Wilcoxon test:
 # =========  =======  ======  ===  ===  =========  =====
@@ -295,13 +303,14 @@ magnitude_comparison <- model_data |>
 
 # Analyze the proportion of datasets where the magnitude for Traits is greater than Species.
 # Uncomment to compute the proportions:
-# model_data |> 
-#   select(dataset, facet, magnitude) |> 
-#   pivot_wider(names_from = facet, values_from = magnitude) |> 
-#   mutate(higher = Traits > Species) |> 
-#   janitor::tabyl(higher) |> 
-#   adorn_pct_formatting(digits = 2) |>
-#   kableExtra::kable(format = "rst")
+model_data |>
+  select(dataset, facet, magnitude) |>
+  pivot_wider(names_from = facet, values_from = magnitude) |>
+  #filter(Species < 1.25) |> 
+  mutate(higher = Species < Traits) |>
+  janitor::tabyl(higher) |>
+  adorn_pct_formatting(digits = 2) |>
+  kableExtra::kable(format = "rst")
 
 # Example output:
 # ======  ===  =======
@@ -313,9 +322,9 @@ magnitude_comparison <- model_data |>
 
 # Visualization: Create Figure 5b --------------------------------------------
 
+
 # Figure 5b visualizes the magnitude comparison between Species and Traits replacements.
 # A segment connects the corresponding magnitudes for Species and Traits to highlight their relationship.
-
 Figure_5b <- 
   model_data |> 
   # Convert the facet variable (Species, Traits) to numeric for positioning.
@@ -324,28 +333,28 @@ Figure_5b <-
   
   # Add connecting segments for pairs of Species and Traits magnitudes where Species magnitude < 0.7.
   geom_segment(
-    data = magnitude_comparison |> filter(Species < 0.7), 
+    data = magnitude_comparison |> filter(Species < 1.2), 
     aes(x = 1.97, y = Traits, xend = 1.03, yend = Species),
-    linewidth = 0.1, colour = "gray60", alpha = 0.7
+    linewidth = 0.5, colour = "gray60", alpha = 0.7
   ) +
   
   # Add density slabs for the Trait magnitudes, positioned to the left and right of the y-axis.
   ggdist::stat_slab(
-    data = magnitude_comparison |> filter(Species < 0.7), 
+    data = magnitude_comparison  |> filter(Species < 1.2), 
     aes(y = Traits, x = 0.9), 
     width = 0.3, side = "left"
   ) +
   ggdist::stat_slab(
-    data = magnitude_comparison |> filter(Species < 0.7), 
+    data = magnitude_comparison  |> filter(Species < 1.2), 
     aes(y = Traits, x = 2.1), 
     width = 0.3, side = "right"
   ) +
   
   # Add scatter points for individual magnitude values.
-  geom_point(size = 0.5, colour = "gray30") +
+  geom_point(size = 3, colour = "gray30") +
   
   # Styling and layout adjustments for the plot.
-  ggplot2::theme_void(base_family = "sans", base_size = 6) +
+  ggplot2::theme_void(base_family = "sans", base_size = 20) +
   ggplot2::theme(
     panel.grid.minor = ggplot2::element_blank(),
     plot.background = ggplot2::element_rect(fill = "white", color = NA),
@@ -378,7 +387,7 @@ Figure_5b <-
   ) +
   
   # Adjust coordinate limits and axis scales.
-  coord_cartesian(ylim = c(0, 0.7), xlim = c(0.5, 2.5)) +
+  coord_cartesian(ylim = c(0, 1.2), xlim = c(0.5, 2.5)) +
   labs(
     y = "Magnitude of effect", 
     x = NA  # No x-axis label
@@ -388,17 +397,18 @@ Figure_5b <-
     labels = c("Species<br>replacement", "Trait<br>replacement"), 
     position = "top"
   ) +
-  scale_y_continuous(breaks = seq(0, 0.7, by = 0.1)) +
+  scale_y_continuous(breaks = seq(0, 1.5, by = .25)) +
   
   # Add truncated axes to improve visual focus.
   guides(
-    y = guide_axis_truncated(trunc_lower = 0, trunc_upper = 0.7),
+    y = guide_axis_truncated(trunc_lower = 0, trunc_upper = 1.5),
     x = guide_axis_truncated(
       trunc_lower = function(x) { x - 0.2 },
       trunc_upper = function(x) { x + 0.2 }
     )
   )
 
+ggsave(Figure_5b,filename="figure_5b_conference.pdf")
 # Statistical Test for Shape Convergence -------------------------------------
 # Analyze if shapes of replacement converge between Species and Traits.
 # Uncomment to check the convergence statistics:
@@ -452,11 +462,11 @@ Figure_5c <-
   geom_text(
     stat = "stratum",
     aes(label = gsub("   ", " ", paste0(stratum, " (n = ", after_stat(count), ")"))),
-    color = "black", size = convert_size(5)
+    color = "black", size = convert_size(10)
   ) +
   
   # Style adjustments
-  ggplot2::theme_void(base_family = "sans", base_size = 6) +
+  ggplot2::theme_void(base_family = "sans", base_size = 20) +
   ggplot2::theme(
     panel.grid.minor = ggplot2::element_blank(),
     plot.background = ggplot2::element_rect(fill = "white", color = NA),
@@ -502,7 +512,7 @@ Figure_5c <-
       trunc_upper = function(x) { x + 0.1 }
     )
   )
-
+ggsave(Figure_5c,filename="figure_5c_conference.pdf")
 # Combine Figures 5a, 5b, and 5c into a Composite Figure ---------------------
 
 # Combine Figure 5a and Figure 5b in a single row, followed by Figure 5c below.

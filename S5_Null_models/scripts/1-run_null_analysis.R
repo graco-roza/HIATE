@@ -49,6 +49,7 @@ pacman::p_load(
   ,readxl #read rds files
   ,future #set up cores available
   ,doSNOW # make parallel procedure
+  ,doRNG
 )
 
 source("S5_run_BBGDM/functions_run_null_bbgdm.R")
@@ -78,13 +79,19 @@ species_diff <- glue::glue("S2_get_beta_diversity/betadiv_input/{focal_dataset}_
 
 comm <- species_diff %>%  pluck("comm") #extract the community data
 traits <- species_diff %>%  pluck("trait_syndrome") #extract the synthetic traits (PCoA Axes)
-predictors <- glue::glue("S3_get_best_predictors/best_predictors/coeff/{focal_dataset}_pred.rds") %>%  read_rds() #read the dataset pre processed file
-
+predictors <- lapply(c("Podani_abun","Podani_pa","Baselga_abun","Baselga_pa"),function(x) readRDS(glue::glue("S3_get_best_predictors/best_predictors/{x}/{focal_dataset}_pred.rds"))$Functional) #read the dataset pre processed file
+names(predictors)<-c("Podani_abun","Podani_pa","Baselga_abun","Baselga_pa")
 
 #make sure the community only has species with trait values. 
 comm <- comm %>%  select(any_of(rownames(traits)))
-rownames(traits)sample(rownames(traits))
-res <- replicate(1000, run_null(comm = comm ,traits = traits[sample(1:nrow(traits)), ],pred = predictors$Functional,component = "Brepl"), simplify=FALSE)
+res <- transpose(replicate(1000, run_null(comm = comm, traits = traits[sample(1:nrow(traits)),], pred = predictors), simplify=FALSE))
 
-saveRDS(res, glue::glue("S5_Null_models/null_output/coeff/{focal_dataset}_null_bbgdm.rds"))
+Podani_abun_null <- res$Podani_abun
+Podani_pa_null <- res$Podani_pa
+Baselga_abun_null <- res$Baselga_abun
+Baselga_pa_null <- res$Baselga_pa
 
+saveRDS(Podani_abun_null, glue::glue("S5_Null_models/null_output/Podani_abun/{focal_dataset}_null_bbgdm.rds"))
+saveRDS(Podani_pa_null, glue::glue("S5_Null_models/null_output/Podani_pa/{focal_dataset}_null_bbgdm.rds"))
+saveRDS(Baselga_abun_null, glue::glue("S5_Null_models/null_output/Baselga_abun/{focal_dataset}_null_bbgdm.rds"))
+saveRDS(Baselga_pa_null, glue::glue("S5_Null_models/null_output/Baselga_pa/{focal_dataset}_null_bbgdm.rds"))

@@ -28,10 +28,11 @@ pacman::p_load("tidyverse", "gdm", "surveillance", "plotrix", "glue", "magrittr"
 
 # Only for HPC cluster (Doesn't affect anything in local machines) ---------------------------------------------------
 # Grab the array ID value from the environment variable passed from sbatch
-beta_types <- c("Baselga_abun", "Baselga_pa", "Podani_abun", "Podani_pa")
-combined_id <- 630#as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))  # Combined ID from 1 to 660
+#Dont change this because it is mostly needed for the HPC
+beta_types <- c("Podani_pa","Podani_abun", "Baselga_abun", "Baselga_pa")
+#combined_id <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))  # Combined ID from 1 to 660
 ii <- ifelse(combined_id > 165, ((combined_id-1) %% 165) + 1,combined_id)        # ii cycles from 1 to 165
-beta_index <- ((combined_id - 1) %/% 165) + 1  # beta_index cycles 1,2,3,4
+beta_index <- 1#((combined_id - 1) %/% 165) + 1  # beta_index cycles 1,2,3,4
 beta_type <- beta_types[beta_index]
 # -----------------------------------------------------------------------------------------------------------------
 # @ Run Analysis ######
@@ -42,7 +43,7 @@ source("S3_get_best_predictors/Functions/functions_get_best_predictors.R")
 
 # Get dataset names from beta diversity output
 files <- tools::file_path_sans_ext(list.files(glue::glue("S2_get_beta_diversity/betadiv_output/{beta_type}")))
-focal_dataset <- gsub("_beta_Output", "", files[ii]) # Choose one dataset
+focal_dataset <- "Predicts_vk1_2011_edenius_1"#gsub("_beta_Output", "", files[ii]) # Choose one dataset
 write(focal_dataset, stderr())
 
 # Read beta diversity metrics and predictor variables
@@ -55,15 +56,6 @@ modis_var <- predictors %>% dplyr::select(contains("modis")) %>% names()
 het_var <- predictors %>% dplyr::select(contains("het")) %>% names()
 comb <- t(expand.grid(hfp_var, modis_var, het_var)) %>% data.frame
 metrics <- dissim_data %>% map(~ .x %>% pluck(2) %>% round(3))
-
-
-
-# Generate cleaned names from the Taxonomic labels
-# new_names <- gsub(" .*", "", attr(metrics$Taxonomic, "Labels"))
-# attr(metrics$Taxonomic, "Labels") <- new_names
-# new_names <- gsub(" .*", "", attr(metrics$Functional, "Labels"))
-# attr(metrics$Functional, "Labels") <- new_names
-
 
 # Variable Selection for Taxonomic Beta Diversity ----------------------------------------
 print("Taxonomic best variables...")
@@ -111,15 +103,14 @@ pred_tax_best <- predictors %>% dplyr::select(site, x, y,
 # Variable Selection for Functional Beta Diversity --------------------------------------
 print("Functional best variables...")
 var_select_fun <- lapply(1:ncol(comb), function(j) {
-    jj <- comb %>% data.frame() %>% pull(j)
+  jj <- comb %>% data.frame() %>% pull(j)
   res <- get_bbgdm_predictors(
     metrics$Functional,
     pred = predictors %>% dplyr::select(site, x, y, all_of(jj), Temp, Prec)
   )
   return(res)
 })
-warnings(
-)
+
 best_coeff_fun_group <- var_select_fun %>%
   imap_dfr(~ bind_rows(
     as_tibble(.x$coefficient$differentiation) %>% 
@@ -130,11 +121,11 @@ best_coeff_fun_group <- var_select_fun %>%
       mutate(direction = "homogenization",
              r2 = .x$r2$homogenization,
              group = .y)
-  ) %>%
-    rename(predictors = var,
-           coefficients = effect_size) %>%
-    select(group, direction, predictors, coefficients, r2)
+  ) 
   ) |> 
+  rename(predictors = var,
+         coefficients = effect_size) %>%
+  select(group, direction, predictors, coefficients, r2) |> 
   group_by(group, direction) %>%
   summarise(
     r2 = unique(r2),

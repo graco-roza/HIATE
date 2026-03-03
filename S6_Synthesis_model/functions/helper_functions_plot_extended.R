@@ -32,9 +32,9 @@ my_theme_extended_models <- function() {
 add_annotations <- function(add_annotations) {
   if (isTRUE(add_annotations)) {
     list(
-      ggplot2::annotate("text", family = "sans", label = "Differentiation", 
+      ggplot2::annotate("text", family = "sans", label = "Dissimilarity", 
                         size = convert_size(2.5), x = -.25, y = 13.5, hjust = 1, col = "gray30"),
-      ggplot2::annotate("text", family = "sans", label = "Homogenisation", 
+      ggplot2::annotate("text", family = "sans", label = "Similarity", 
                         size = convert_size(2.5), x = 0.25, y = 13.5, hjust = 0, col = "gray30"),
       ggplot2::annotate("segment", linewidth = 0.1, x = -2.4, xend = -2.8, y = 13.5, yend = 13.5, 
                         arrow = arrow(type = "closed", length = unit(0.02, "inches")), col = "gray30"),
@@ -48,26 +48,34 @@ add_annotations <- function(add_annotations) {
 
 # Helper function for parameter cleaning and renaming
 clean_parameters <- function(parameter) {
-  parameter <- tolower(parameter)
-  parameter <- gsub("\\_", " ", parameter)
-  parameter <- gsub("main land use type|buffer", "", parameter)
-  parameter <- gsub("human pressure baseline", "Human Pressure [Baseline]", parameter)
-  parameter <- gsub("human pressure range", "Human Pressure [Range]", parameter)
-  parameter <- gsub("spatial distance min", "Spatial Distance [Minimum]", parameter)
-  parameter <- gsub("absolute latitude mean", "Absolute Latitude [Mean]", parameter)
-  parameter <- stringr::str_replace_all(parameter, c(
-    "agriculture" = "Agriculture – Multiple",
-    "forest" = "Forest – Multiple",
-    "urban" = "Urban – Multiple",
-    "1500" = "1.5km – 1km",
-    "2000" = "2km – 1km"
-  ))
-  parameter <- case_when(
-    grepl("^ecosystem typefreshwater", parameter) ~ "Freshwater – Terrestrial",
-    grepl("^direction", parameter) ~ "Homogenisation – Differentiation",
-    TRUE ~ parameter
+  lookup <- c(
+    species_number                                     = "Species Number",
+    spatial_distance_min                               = "Spatial Distance [Minimum]",
+    spatial_extent                                     = "Spatial Extent",
+    absolute_latitude_mean                             = "Absolute Latitude [Mean]",
+    human_footprint_baseline                           = "Human Footprint [Minimum]",
+    human_footprint_range                              = "Human Footprint [Range]",
+    habitat_heterogeneity_baseline                     = "Habitat Heterogeneity [Minimum]",
+    habitat_heterogeneity_range                        = "Habitat Heterogeneity [Range]",
+    directionHomogenisation                            = "<i>Similarity – Dissimilarity</i>",
+    ecosystem_typeFreshwater                           = "<i>Freshwater – Terrestrial</i>",
+    `ecosystem_typeFreshwater:directionHomogenisation` = "<i>Freshwater x Similarity</i>",
+    main_land_use_typeAgriculture                      = "<i>Agriculture – Multiple</i>",
+    main_land_use_typeForest                           = "<i>Forest – Multiple</i>",
+    main_land_use_typeUrban                            = "<i>Urban – Multiple</i>",
+    `main_land_use_typeAgriculture:directionHomogenisation` = "<i>Agriculture x Similarity</i>",
+    `main_land_use_typeForest:directionHomogenisation`      = "<i>Forest x Similarity</i>",
+    `main_land_use_typeUrban:directionHomogenisation`       = "<i>Urban x Similarity</i>",
+    hfp_buffer1500                                     = "<i>HFP: 1.5km – 1km</i>",
+    hfp_buffer2000                                     = "<i>HFP: 2km – 1km</i>",
+    het_buffer1000                                     = "<i>HH: 1km – 0.5km</i>",
+    het_buffer1500                                     = "<i>HH: 1.5km – 0.5km</i>",
+    het_buffer2000                                     = "<i>HH: 2km – 0.5km</i>"
   )
-  stringr::str_to_title(parameter)
+  # map, falling back to the original name if missing
+  pretty <- lookup[parameter]
+  pretty[is.na(pretty)] <- parameter[is.na(pretty)]
+  pretty
 }
 
 
@@ -94,23 +102,34 @@ get_support <- function(data) {
 generate_figure_data <- function(species_model, trait_model, type, draw_min, draw_max) {
 
   
-  parameter_order <- rev(c("Species Number",
-                           "Spatial Distance [Minimum]",
-                           "Spatial Extent",
-                           "Absolute Latitude [Mean]",
-                           "<i>Homogenisation – Differentiation</i>",
-                           "<i>Freshwater – Terrestrial</i>",
-                           "<i>Agriculture – Multiple</i>",
-                           "<i>Forest – Multiple</i>",
-                           "<i>Urban – Multiple</i>",
-                           "Human Pressure [Baseline]",
-                           "Human Pressure [Range]",
-                           "<i>1.5km – 1km</i>",
-                           "<i>2km – 1km</i>"))
+  parameter_order <- rev(c(
+    "Species Number",
+    "Spatial Distance [Minimum]",
+    "Spatial Extent",
+    "Absolute Latitude [Mean]",
+    "Human Footprint [Minimum]",
+    "Human Footprint [Range]",
+    "Habitat Heterogeneity [Minimum]",
+    "Habitat Heterogeneity [Range]",
+    "<i>Similarity – Dissimilarity</i>",
+    "<i>Freshwater – Terrestrial</i>",
+    "<i>Freshwater x Similarity</i>",
+    "<i>Agriculture – Multiple</i>",
+    "<i>Forest – Multiple</i>",
+    "<i>Urban – Multiple</i>",
+    "<i>Agriculture x Similarity</i>",
+    "<i>Forest x Similarity</i>",
+    "<i>Urban x Similarity</i>",
+    "<i>HFP: 1.5km – 1km</i>",
+    "<i>HFP: 2km – 1km</i>",
+    "<i>HH: 1km – 0.5km</i>",
+    "<i>HH: 1.5km – 0.5km</i>",
+    "<i>HH: 2km – 0.5km</i>"
+  ))
   
   # Remove specific parameters for direction models
   if (type == "direction") {
-    custom_parameter_order <- parameter_order[!parameter_order %in% c("<i>Homogenisation – Differentiation</i>")]
+    custom_parameter_order <-   parameter_order[!str_detect(parameter_order, "Similarity")]
     var_prefix <- "b_"
     names <- c("coef","parameter")
   } else if (type == "magnitude") {
@@ -142,7 +161,7 @@ generate_figure_data <- function(species_model, trait_model, type, draw_min, dra
     as_tibble() |>
     pivot_longer(cols = !c(.chain, .iteration, .draw), names_to = "variable", values_to = "posterior") |>
     separate(variable, into = names, extra = "merge") |>
-    mutate(facet = "Species replacement") |>
+    mutate(facet = "Taxonomic turnover") |>
     left_join(text_species)
 
   draws_trait <- trait_model |>
@@ -150,19 +169,25 @@ generate_figure_data <- function(species_model, trait_model, type, draw_min, dra
     as_tibble() |>
     pivot_longer(cols = !c(.chain, .iteration, .draw), names_to = "variable", values_to = "posterior") |>
     separate(variable, into = names, extra = "merge") |>
-    mutate(facet = "Trait replacement") |>
+    mutate(facet = "Functional turnover") |>
     left_join(text_trait)
   
   # # Bind taxonomic and functional datasets
-  figure_data <- bind_rows(draws_species, draws_trait) |>
-    mutate(facet = factor(facet, levels = c("Species replacement", "Trait replacement"))) |> # Create a factor for applying facet
+figure_data <- 
+    bind_rows(draws_species, draws_trait) |>
+    mutate(facet = factor(facet, levels = c("Taxonomic turnover", "Functional turnover"))) |> # Create a factor for applying facet
     select(any_of(c("shape","parameter","posterior","facet","text"))) |>
     group_by(across(where(is.character))) |>
-    mutate(mean_hdi(posterior, .width = .8)) |>
-    mutate(parameter = clean_parameters(parameter)) |>  # Clean and rename parameters
+    filter(!grepl("^sigma",parameter)) |> 
+    mutate(median_hdci(posterior, .width = .8))
+
+if (type == "magnitude") {
+figure_data <-figure_data |>  separate_wider_delim(parameter, delim="_", names = c("response","parameter"),too_many="merge") 
+}
+
+ figure_data <- figure_data |> 
+   mutate(parameter = clean_parameters(parameter)) |>  # Clean and rename parameters
     filter(!parameter %in% "Intercept") |>
-    mutate(parameter = case_when(grepl("–",parameter) ~ glue::glue("<i>{parameter}</i>"),
-                                 TRUE ~ parameter)) |> 
     ungroup() |>
     mutate(parameter = factor(parameter, levels = custom_parameter_order)) |>
     #arrange(facet, parameter) |>
@@ -173,11 +198,11 @@ generate_figure_data <- function(species_model, trait_model, type, draw_min, dra
     mutate(significant = !between(0, ymin, ymax)) |>
     ungroup() |>
     mutate(parameter = factor(parameter, levels = custom_parameter_order)) 
-  
+ figure_data
   if (type == "shape") {
     figure_data<- figure_data |>  
       mutate(shape = gsub("mu","",shape))  |> 
-      mutate(shape = gsub("Revlog","Reverse logistic",shape)) 
+      mutate(shape = gsub("revlog","reverse logistic",shape)) 
   }
    
    return(figure_data)
@@ -190,17 +215,18 @@ generate_figure_data <- function(species_model, trait_model, type, draw_min, dra
 # shape_figure_data <- generate_figure_data(fit_shape_tax, fit_shape_fun, "shape")
 
 # Generalized plotting function with text
+
 plot_posterior_draws <- function(data,  add_annotations = FALSE,
                                    facet_var = "facet", 
                                    trunc_upper = NULL, trunc_lower = NULL, 
                                    tick_factor = NULL, xlims = NULL) {
-   # data=magnitude_figure_data
+   # data=shape_figure_data
    # trunc_upper = 6
    # trunc_lower = -2
    # tick_factor = 2
    # xlims = c(-3,7)
    # add_annotations = FALSE
-   # facet_var = "facet"
+   # facet_var = c("facet","shape")
   # 
     # Define limits and truncation based on data if not provided
     posterior_range <- round_half_up(range(data$posterior, na.rm = TRUE),0)

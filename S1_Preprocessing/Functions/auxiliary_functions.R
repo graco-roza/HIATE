@@ -26,7 +26,7 @@
 #   - Ensure all input files are properly formatted and projections are consistent.
 ###############################################################################
 
-
+library(sp)
 # Function to clean all raw datasets
 clean_data <- function(focal_dataset) { 
   # Define the path to the dataset
@@ -72,7 +72,6 @@ clean_data <- function(focal_dataset) {
 hfp_get <- function(coordinates, buffers = c(1000, 1500, 2000)) {
   require(raster)
   require(sf)
-  
   # Load the Human Footprint raster
   humanfootprint <- raster::raster("S1_Preprocessing/Miscellaneous/Human_footprint/wildareas-v3-2009-human-footprint_geo.tif")
   
@@ -94,9 +93,12 @@ hfp_get <- function(coordinates, buffers = c(1000, 1500, 2000)) {
   return(hfp)
 }
 
+
 # Function to extract MODIS land cover data
 modis_get <- function(coordinates, dataset, buffers = seq(500, 2000, by = 500)) { 
-  # Retrieve start and end years from dataset info
+  
+  
+  #Retrieve start and end years from dataset info
   start_year <- data_info %>% filter(dataset_name == dataset) %>% pull(start_year)
   final_year <- data_info %>% filter(dataset_name == dataset) %>% pull(end_year)
   
@@ -110,37 +112,47 @@ modis_get <- function(coordinates, dataset, buffers = seq(500, 2000, by = 500)) 
     end = as.character(glue::glue("{final_year}-12-30")),
     km_lr = 3, km_ab = 3, internal = TRUE
   )
-  
   # Convert MODIS data into rasters grouped by year
   write("make raster modis", stderr())
   raster_modis <- modis_df %>% 
     group_split(calendar_date) %>% 
-    purrr::map(~ .x %>% group_split(site) %>% purrr::map(~MODISTools::mt_to_terra(df = .x))) %>% 
+    purrr::map(~ .x %>% group_split(site) %>% purrr::map(~MODISTools::mt_to_terra(df = as.data.frame(.x)))) %>% 
     c() %>% 
     map(~terra::merge(terra::sprc(.x)))
+  
+  
   
   # Convert coordinates to spatial object and reproject
   write("convert coordinates into spatial object", stderr())
   coordinates(coordinates) <- ~x + y
   proj4string(coordinates) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
   coordinates <- spTransform(coordinates, crs(raster_modis[[1]], proj = TRUE))
-  
   # Extract land cover proportions for human-altered classes (e.g., buildings, croplands)
   # Multiple buffers allow sensitivity analysis to spatial scale
+  
   write("final calculation of MODIS", stderr())
   modis <- list()
   for (i in seq_along(raster_modis)) {
     modis[[i]] <- lapply(buffers, function(x) {
-      raster::extract(raster(raster_modis[[i]]), coordinates, buffer = x) %>%
+      raster::extract(raster::raster(raster_modis[[i]]), coordinates, buffer = x) %>%
         purrr::map(~data.frame(class = .x)) %>%
+        set_names(coordinates$site) |> 
         bind_rows(.id = "site") %>%
         group_by(site) %>%
-        summarise(modis = sum(freq, na.rm = TRUE), heterogeneity = mean(heterogeneity, na.rm = TRUE)) %>%
+        mutate(class = factor(class, levels = c(1:16))) |> 
+        count(class) |> 
+        complete(class, fill = list(n=0)) |> 
+        mutate(rel_use = n/sum(n),
+               heterogeneity = vegan::diversity(rel_use)) |> 
+        filter(class %in% c(12,13,14)) |> 
+        summarise(modis = sum(rel_use, na.rm = TRUE), heterogeneity = mean(heterogeneity, na.rm = TRUE)) %>%
         rename(!!glue("modis_{x}") := modis, !!glue("het_{x}") := heterogeneity)
     }) %>% Reduce(f = full_join, x = .)
   }
   
-  modis_mean <- modis %>% bind_rows() %>% group_by(site) %>% 
+  modis_mean <- modis %>% 
+    bind_rows() %>% 
+    group_by(site) %>% 
     summarise(across(starts_with(c("modis", "het")), ~mean(.x, na.rm = TRUE)))
   
   return(modis_mean)
@@ -148,12 +160,12 @@ modis_get <- function(coordinates, dataset, buffers = seq(500, 2000, by = 500)) 
 
 # Function to extract climate data
 climate_get <- function(coord) { 
-  require(raster)
+  require(terra)
   require(sp)
-  
+
   # Load climate rasters
-  temp <- raster::raster("S1_Preprocessing/Miscellaneous/wc10/wc2.1_10m/wc2.1_10m_bio_1.tif")
-  prec <- raster::raster("S1_Preprocessing/Miscellaneous/wc10/wc2.1_10m/wc2.1_10m_bio_12.tif")
+  temp <- raster::raster("S1_Preprocessing/Miscellaneous/wc10/annual_mean_temp_30s.tif")
+  prec <- raster::raster("S1_Preprocessing/Miscellaneous/wc10/annual_total_prec_30s.tif")
   
   # Convert coordinates to spatial object and reproject
   sp::coordinates(coord) <- ~x + y
@@ -161,13 +173,13 @@ climate_get <- function(coord) {
   coord <- sp::spTransform(coord, raster::projection(temp))
   
   # Extract temperature and precipitation data
-  temp_extracted <- raster::extract(temp, coord) %>% data.frame()
-  prec_extracted <- raster::extract(prec, coord) %>% data.frame()
-  
+  temp_extracted <- raster::extract(temp, coord, buffer = 1000, fun = mean) %>% data.frame()
+  prec_extracted <- raster::extract(prec, coord, buffer = 1000, fun = mean) %>% data.frame()
   # Combine into a single data frame
   climate <- data.frame(Temp = temp_extracted[,1], Prec = prec_extracted[,1])
   return(climate)
 }
+
 
 # Function to retrieve all predictors (HFP, MODIS, Climate)
 get_predictors <- function(coordinates, dataset_name) {
@@ -188,7 +200,6 @@ get_predictors <- function(coordinates, dataset_name) {
   predictors <- Reduce(full_join, list(coordinates %>% mutate(site = as.character(site)), hfp, modis, climate))
   return(predictors)
 }
-
 
 
 

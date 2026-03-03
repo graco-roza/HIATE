@@ -47,45 +47,53 @@ require(glue) # For creating dynamic strings, especially for file paths and labe
 #' @return A processed tibble ready for modeling or analysis.
 #' @export
 process_model_data <- function(data_path, model_type) {
-  # data_path="S7_Synthesis_model/data/synthesis_data.xlsx"
-  # model_type = "convergence"
+  # data_path="S6_Synthesis_model/data/synthesis_data_complete.xlsx"
+  # model_type = "shape"
   # Define base column renaming for consistency with text labels
+  
   base_col_rename <- c(
     "species_number" = "species.number",
-    "spatial_distance_min" = "spatial.min",
+    "hypervolume_quality" = "hyper_quality",
+    "spatial_distance_min" = "spatial_min",
+    "spatial_distance_max" = "spatial_max",
     "spatial_extent" = "spatial.extent",
     "absolute_latitude_mean" = "latitude.mean",
-    "direction_harrel_davis" = "direction_r2",
+    "latitutinal_zone" = "latitudinal.zone",
+    "direction_harrel_davis" = "harrel_davis",
+    "direction_median_overlap" = "median_overlap",
+    "direction_median_diff" = "median_diff",
     "taxa_coarse" = "biotic.group",
     "taxa_fine" = "taxa",
     "ecosystem_type" = "realm",
     "main_land_use_type" = "disturbance",
-    "buffer" = "buffer",
-    "human_pressure_baseline" = "hfp.min",
-    "human_pressure_max" = "hfp.max",
-    "human_pressure_range" = "hfp.range"
+    "human_footprint_baseline" = "hfp_min",
+    "human_footprint_range" = "hfp_range",
+    "habitat_heterogeneity_baseline" = "het_min",
+    "habitat_heterogeneity_range" = "het_range",
+    "framework" = "beta_type",
+    "feature" = "metric_type"
   )
+  # Read raw data first to get column names
+  raw_data <- readxl::read_xlsx(data_path)
   
   # Define model-specific columns to select based on model type
   specific_cols <- switch(
     model_type,
-    "direction" = c("direction_harrel_davis"),
-    "magnitude" = c("magnitude"),
-    "shape" = c("Absent", "Exponential", "Saturating", "Revlog"),
-    "convergence" = c("magnitude", "direction_harrel_davis", "Absent", "Exponential", "Saturating", "Revlog")
+    "direction" = c("direction_harrel_davis", "direction_median_overlap", "direction_median_diff"),
+    "magnitude" = c("hfp_magnitude", "het_magnitude","hfp_magnitude_rel","het_magnitude_rel","beta_median","beta_range"),
+    "shape" = grep("^hfp_|^het_", names(raw_data), value = TRUE),
+    "convergence" = c("magnitude", "harrel_davis", "median_overlap", "Absent", "Exponential", "Saturating", "Revlog")
   )
-  
   # Read and process data
-  processed_data <- data_path |>
-    readxl::read_xlsx() |>
-    dplyr::filter(!dataset %in% c("N67TTP", "N78TTP", "S47TTP")) |> 
+  processed_data <- 
+     raw_data |> 
+    dplyr::filter(!dataset %in% c("N67TTP", "N78TTP", "S47TTP")) |>
     dplyr::rename(all_of(base_col_rename)) |> 
     dplyr::select(
-      dataset, facet, ecosystem_type, taxa_coarse, taxa_fine, buffer, species_number,
-      spatial_extent, spatial_distance_min, absolute_latitude_mean, direction,
-      human_pressure_baseline, human_pressure_max, human_pressure_range, main_land_use_type, all_of(specific_cols)
+      dataset, facet, framework, feature, direction, ecosystem_type, taxa_coarse, taxa_fine, hfp_buffer, het_buffer, species_number, hypervolume_quality,
+      spatial_extent, spatial_distance_min, absolute_latitude_mean, latitutinal_zone, direction,
+      habitat_heterogeneity_baseline, habitat_heterogeneity_range, human_footprint_baseline, human_footprint_range, main_land_use_type, any_of(specific_cols)
     ) |>
-    
     # Apply general transformations and formatting
     dplyr::mutate(
       facet = dplyr::recode(facet, "Taxonomic" = "Species", "Functional" = "Traits"),
@@ -94,23 +102,22 @@ process_model_data <- function(data_path, model_type) {
       ecosystem_type = factor(str_to_title(ecosystem_type), levels = c("Terrestrial", "Freshwater")),
       taxa_coarse = factor(taxa_coarse, levels = c("invertebrate", "vertebrate", "plant", "microorganism")),
       main_land_use_type = factor(str_to_title(main_land_use_type), levels = c("Multiple", "Agriculture", "Forest", "Urban")),
-      species_number = log10(species_number + 1),
-      spatial_extent = log10(spatial_extent + 1),
+      species_number = log10(species_number),
+      spatial_extent = log10(spatial_extent),
       spatial_distance_min = log10(spatial_distance_min + 1),
-      human_pressure_range = human_pressure_max - human_pressure_baseline,
       absolute_latitude_mean = abs(absolute_latitude_mean),
       direction = gsub("z", "s", direction),
       direction = factor(str_to_title(direction), levels = c("Differentiation", "Homogenisation")),
-      buffer = factor(buffer, levels = c("1000", "1500", "2000"))
+      hfp_buffer = factor(hfp_buffer, levels = c("1000", "1500", "2000")),
+      het_buffer = factor(het_buffer, levels = c("500","1000", "1500", "2000"))
     ) |>
     
     # Standardize numeric columns
     dplyr::mutate(dplyr::across(
       c("species_number", "spatial_distance_min", "spatial_extent", 
-        "absolute_latitude_mean", "human_pressure_baseline", "human_pressure_range"), 
-      ~ (.x - mean(.x, na.rm = TRUE)) / sd(.x, na.rm = TRUE)
+        "absolute_latitude_mean"), 
+      ~ datawizard::standardise(.x)
     )) |> 
-    select(-human_pressure_max) |> 
     janitor::clean_names()
   
   # Calculate the most frequent shape for each dataset and facet
@@ -129,8 +136,10 @@ process_model_data <- function(data_path, model_type) {
 
   if (model_type == "shape") {
     processed_data <- processed_data |> 
-      mutate(shape = cbind(absent, exponential, saturating, revlog),
-             trials = absent + exponential + saturating + revlog) 
+      mutate(hfp_shape = cbind(hfp_absent, hfp_exponential, hfp_saturating, hfp_revlog),
+             het_shape = cbind(het_absent, het_exponential, het_saturating, het_revlog),
+             hfp_trials = hfp_absent+ hfp_exponential+ hfp_saturating+ hfp_revlog,
+             het_trials = het_absent+ het_exponential+ het_saturating+ het_revlog) 
   }
   
   return(processed_data)
@@ -240,11 +249,22 @@ phdmad <- function(x, y) pooled(x, y, hdmad)
 #' @return The gamma effect size.
 #' @export
 gammaEffectSize <- function(x, y, prob){
-  if(length(na.exclude(y)) < 300) y<-c(na.exclude(y),rep(0,length(na.exclude(x)) - length(na.exclude(y))))
-  if(length(na.exclude(x)) < 300) x<-c(na.exclude(x),rep(0,length(na.exclude(y)) - length(na.exclude(x))))
+  if(length(na.exclude(y)) < 1) y<-c(na.exclude(y),rep(0,length(na.exclude(x)) - length(na.exclude(y))))
+  if(length(na.exclude(x)) < 1) x<-c(na.exclude(x),rep(0,length(na.exclude(y)) - length(na.exclude(x))))
   res<-as.numeric((hdquantile(na.exclude(y), prob) - hdquantile(na.exclude(x), prob)) / phdmad(na.exclude(x), na.exclude(y)))
   return(res)
 }
+
+
+
+# effects.R
+
+library(effsize)      # for cliff.delta()
+library(Hmisc)        # for hdquantile()
+library(boot)         # for phmad()
+
+
+
 
 #' Extract Predictions
 #'
@@ -260,12 +280,20 @@ gammaEffectSize <- function(x, y, prob){
 extract_predictions <- function(species_model, trait_model, predictor, ndraws = 1000, levels_list = NULL) {
   
   # Generate predictions for taxonomic facet (Species replacement)
-  species_pred <- predictions(species_model, by = predictor, ndraws = ndraws) |>
+  species_pred <- marginaleffects::predictions(species_model, 
+                                               variables = predictor, 
+                                               ndraws = ndraws,
+                                               re_formula = NA,
+                                               type="response") |>
     marginaleffects::posteriordraws() |>
     mutate(facet = "Species replacement")  # Directly assign facet label
   
   # Generate predictions for functional facet (Trait replacement)
-  trait_pred <- predictions(trait_model, by = predictor, ndraws = ndraws) |>
+  trait_pred <- marginaleffects::predictions(trait_model, 
+                                             variables = predictor, 
+                                             ndraws = ndraws,
+                                             re_formula = NA,
+                                             type="response") |>
     marginaleffects::posteriordraws() |>
     mutate(facet = "Trait replacement")  # Directly assign facet label
   
@@ -297,38 +325,24 @@ extract_predictions <- function(species_model, trait_model, predictor, ndraws = 
 #' @param width Width of the point intervals.
 #' @return A ggplot object.
 #' @export
+#' 
+
+theme_direction <- function() {
+
+} 
+
 plot_direction <- function(pred_data, model_data, predictor_col, color_map, x_limits = c(-3, 3), vjust_text = 0.75, height=1, justification = 0.15, width=1) {
   
   
-  theme_direction <- function() {
-    ggplot2::theme_void(base_family = "sans", base_size = 3) +
-      ggplot2::theme(
-        panel.grid.minor = ggplot2::element_blank(),
-        plot.background = ggplot2::element_rect(fill = "white", color = NA),
-        strip.background = ggplot2::element_rect(fill = NA, color = NA),
-        strip.text = ggplot2::element_text(size = 4, face = "bold", margin=margin(b=2)),
-        axis.title.x = ggtext::element_markdown(family = "sans", face = "bold", hjust = 0.5, size = 3, margin=margin(t=2)),
-        axis.title.y = element_blank(),
-        axis.text.x = element_markdown(family = "sans", color = "grey30", size = 3, margin = margin(t = 2)),
-        axis.text.y = element_blank(),
-        panel.spacing.x = unit(0.2, "lines"),
-        panel.spacing.y = unit(0.2, "lines"),
-        axis.line.x = element_line(color = "grey70", linewidth=0.1),
-        axis.ticks.x = element_line(color = "grey70", linewidth=0.1),
-        axis.ticks.length.x = unit(0.1, "lines"),
-        plot.margin = margin(2, 0, 2, 0),
-        legend.position="none",
-        plot.tag = element_text(face="bold",size=5)
-      )
-  }
+  
   
   # Helper function to add annotations (arrows and text)
   add_direction_annotations <- function() {
     list(
       annotate("text", family = "sans", label = "Differentiation", size = convert_size(2.5), x = -0.2, y = 1.5, hjust = 1, col = "gray30"),
       annotate("text", family = "sans", label = "Homogenisation", size = convert_size(2.5), x = 0.2, y = 1.5, hjust = 0, col = "gray30"),
-      annotate("segment", linewidth = 0.1, x = -1.4, xend = -2, y = 1.5, yend = 1.5, arrow = arrow(type = "closed", length = unit(0.02, "inches")), col = "gray30"),
-      annotate("segment", linewidth = 0.1, x = 1.6, xend = 2.2, y = 1.5, yend = 1.5, arrow = arrow(type = "closed", length = unit(0.02, "inches")), col = "gray30")
+      annotate("segment", linewidth = 0.1, x = -3, xend = -4, y = 1.5, yend = 1.5, arrow = arrow(type = "closed", length = unit(0.02, "inches")), col = "gray30"),
+      annotate("segment", linewidth = 0.1, x = 3, xend = 4, y = 1.5, yend = 1.5, arrow = arrow(type = "closed", length = unit(0.02, "inches")), col = "gray30")
     )
   }
   
@@ -386,7 +400,7 @@ plot_direction <- function(pred_data, model_data, predictor_col, color_map, x_li
     geom_vline(xintercept = 0, linewidth = 0.1, linetype = "11", colour="gray60") +
     facet_wrap(~facet, ncol = 1, scales = "free") +
     labs(x = "Direction of Relationship (Harrell-Davis)", colour = "") +
-    scale_x_continuous(limits = x_limits, breaks = pretty(seq(-2, 2, 0.2))) +
+    scale_x_continuous(limits = x_limits, breaks = pretty(seq(-5,5, 1))) +
     scale_fill_manual(values = color_map) +
     scale_colour_manual(values = color_map) +
     ggdist::stat_slab(aes(fill = !!sym(predictor_col)), justification = {justification}, colour = "white", alpha = 0.5, height = {height}, size = 0.1, show.legend = FALSE) +
@@ -413,7 +427,7 @@ plot_direction <- function(pred_data, model_data, predictor_col, color_map, x_li
       fill = NA,
       size = convert_size(2.5)
     )+
-    guides(x = guide_axis_truncated(trunc_lower = -2,trunc_upper = 2)) 
+    guides(x = guide_axis_truncated(trunc_lower = -5,trunc_upper = 5)) 
   
   return(final_plot)
 }
@@ -562,11 +576,13 @@ plot_magnitude <- function(pred_data, colors, x_limits, x_breaks, predictor, fac
 #' @export
 extract_shape_predictions <- function(species_model, trait_model, predictor, predictor_levels, facet_labels = c("Species replacement", "Trait replacement")) {
   
+
   # Generate predictions for the "Species replacement" model
   pred_species <- epred_draws(
     species_model, 
-    newdata = insight::get_datagrid(species_model, at = c(predictor, "trials=1"), preserve_range = FALSE, data = species_model$data, include_response = TRUE),
-    re_formula = NA
+    newdata = insight::get_datagrid(species_model, by = c(predictor, "trials=1"), length=100, preserve_range = FALSE, data = species_model$data, include_response = TRUE),
+    re_formula = NA,
+    ndraws=1000
   ) |>
     ungroup() |> 
     dplyr::mutate(facet = facet_labels[1])
@@ -574,8 +590,9 @@ extract_shape_predictions <- function(species_model, trait_model, predictor, pre
   # Generate predictions for the "Trait replacement" model
   pred_trait <- epred_draws(
     trait_model, 
-    newdata = insight::get_datagrid(trait_model, at = c(predictor, "trials=1"), preserve_range = FALSE, data = trait_model$data, include_response = TRUE),
-    re_formula = NA
+    newdata = insight::get_datagrid(trait_model, by = c(predictor, "trials=1"), length=100, preserve_range = FALSE, data = trait_model$data, include_response = TRUE),
+    re_formula = NA,
+    ndraws=1000
   ) |>
     ungroup() |> 
     dplyr::mutate(facet = facet_labels[2])
@@ -717,6 +734,185 @@ theme_convergence_plot <- function() {
     )
 }
 
+library(tidybayes)
+library(dplyr)
+
+compare_direction <- function(model, grid, by_var, width = 0.80){
+  
+  epred_draws(model, newdata = grid, re_formula = NA) %>%
+    
+    # integrate grid rows within draw
+    group_by(.draw, .category, {{by_var}}, direction) %>%
+    summarise(.epred = mean(.epred), .groups = "drop") %>%
+    
+    # contrasts
+    group_by(.category, {{by_var}}) %>%
+    compare_levels(.epred, by = direction) %>%
+    
+    # posterior summary
+    median_hdci(.epred, .width = width) |> mutate(
+      direction_effect = case_when(
+        .lower > 0  ~ "hom",
+        .upper < 0  ~ "diff",
+        TRUE        ~ ""
+      )
+    ) |>
+    select(-.point, -.interval,-.width) |> 
+    kableExtra::kable()
+}
+
+compare_shape <- function(model, grid,width = 0.80){
+  
+  epred_draws(model, newdata = grid, re_formula = NA) %>%
+    
+    # integrate grid rows within draw
+    group_by(.draw, .category) %>%
+    summarise(.epred = mean(.epred), .groups = "drop") %>%
+    
+    # contrasts
+    compare_levels(.epred, by = .category) %>%
+    
+    # posterior summary
+    median_hdci(.epred, .width = width) |> 
+    select(-.point, -.interval,-.width) |> 
+    kableExtra::kable()
+}
 
 
 
+
+regime_test <- function(df, width = 0.80){
+  
+  library(dplyr)
+  library(tidyr)
+  library(tidybayes)
+  
+  separated_hdi <- function(x, y, width){
+    delta <- x - y
+    h <- tidybayes::hdi(delta, .width = width)
+    tibble(
+      separated    = (h[,1] > 0) | (h[,2] < 0),
+      delta_median = median(delta, na.rm = TRUE),
+      delta_lower  = h[,1],
+      delta_upper  = h[,2]
+    )
+  }
+  
+  # per-draw regime probs
+  regime_draws <-
+    df |>
+    group_by(draw, shape, direction) |>
+    summarise(p = mean(probability), .groups = "drop") |>
+    mutate(
+      shape = as.character(shape),
+      direction = as.character(direction)
+    ) |>
+    unite(regime, shape, direction, remove = FALSE)
+  
+  # rank regimes by median prob
+  regime_rank <-
+    regime_draws |>
+    group_by(shape, direction, regime) |>
+    summarise(regime_probability = median(p), .groups = "drop") |>
+    arrange(desc(regime_probability))
+  
+  # wide matrix for HDI contrasts
+  regime_wide <-
+    regime_draws |>
+    select(draw, regime, p) |>
+    pivot_wider(names_from = regime, values_from = p)
+  
+  regimes <- regime_rank$regime
+  n <- length(regimes)
+  
+  out <- list()
+  k <- 1
+  
+  # track (1) which shapes already emitted, (2) which shapes had direction tested
+  kept_shapes <- character(0)
+  direction_checked <- character(0)
+  
+  emit_shape_summary <- function(shape_name, ranks_tested){
+    shape_rows <- regime_rank |>
+      filter(shape == shape_name) |>
+      arrange(desc(regime_probability))
+    
+    dom_dir  <- "inconclusive"
+    dom_prob <- shape_rows$regime_probability[1]
+    
+    if (nrow(shape_rows) >= 2) {
+      sep_dir <- separated_hdi(
+        regime_wide[[shape_rows$regime[1]]],
+        regime_wide[[shape_rows$regime[2]]],
+        width
+      )
+      if (isTRUE(sep_dir$separated[1])) {
+        dom_dir  <- shape_rows$direction[1]
+        dom_prob <- shape_rows$regime_probability[1]
+      }
+    }
+    
+    tibble(
+      shape = factor(shape_name),
+      direction = dom_dir,
+      regime_probability = dom_prob,
+      ranks_tested = ranks_tested
+    )
+  }
+  
+  i <- 1
+  while (i < n) {
+    
+    r1 <- regimes[i]
+    r2 <- regimes[i + 1]
+    
+    shape1 <- as.character(regime_rank$shape[i])
+    shape2 <- as.character(regime_rank$shape[i + 1])
+    
+    # compare r1 vs r2
+    sep12 <- separated_hdi(regime_wide[[r1]], regime_wide[[r2]], width)
+    
+    # if r1 is separated from r2, stop the search; do NOT re-emit an already kept shape
+    if (isTRUE(sep12$separated[1])) {
+      if (!(shape1 %in% kept_shapes)) {
+        out[[k]] <- emit_shape_summary(shape1, ranks_tested = i)
+        k <- k + 1
+        kept_shapes <- c(kept_shapes, shape1)
+      }
+      break
+    }
+    
+    # ---- NOT separated: handle direction testing/inference, but emit each shape only once ----
+    
+    # same-shape tie block: infer direction ONCE for this shape, emit ONCE, then keep scanning
+    if (shape1 == shape2) {
+      
+      if (!(shape1 %in% direction_checked)) {
+        if (!(shape1 %in% kept_shapes)) {
+          out[[k]] <- emit_shape_summary(shape1, ranks_tested = i)
+          k <- k + 1
+          kept_shapes <- c(kept_shapes, shape1)
+        }
+        direction_checked <- c(direction_checked, shape1)
+      }
+      
+      i <- i + 1
+      next
+    }
+    
+    # cross-shape tie: before moving on, infer direction within top shape ONCE (optional), emit ONCE
+    if (!(shape1 %in% direction_checked)) {
+      if (!(shape1 %in% kept_shapes)) {
+        out[[k]] <- emit_shape_summary(shape1, ranks_tested = i)
+        k <- k + 1
+        kept_shapes <- c(kept_shapes, shape1)
+      }
+      direction_checked <- c(direction_checked, shape1)
+    }
+    
+    i <- i + 1
+  }
+  
+  bind_rows(out) |>
+    arrange(desc(regime_probability))
+}

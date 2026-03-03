@@ -39,8 +39,8 @@ library(parallel)
 library(doSNOW)
 
 # Specify the folders and file extensions
-null_model_folder <- "S5_Null_models/null_output"
-observed_folder <- "S4_run_BBGDM/bbgdm_output"
+null_model_folder <- "S5_Null_models/null_output/Podani_abun"
+observed_folder <- "S4_run_BBGDM/bbgdm_output/Podani_abun"
 
 # Get a list of all null model files
 null_model_files <- list.files(null_model_folder, pattern = "_null_bbgdm.rds", full.names = FALSE)
@@ -75,10 +75,15 @@ iterations <- length(null_model_files)         # used for the foreach loop
 #                 # .options.snow = opts,
 #                  .multicombine = FALSE,
 #                  .errorhandling = 'pass') %do% {
+#48,49,50
+
+#luoto_butterfly - dont have the observed data [too long for calculation]
+#
 output <- list() 
-for (i in 1:iterations){
+for (i in 1:164){
   print(i)
-  i<-1
+i=1
+  tryCatch({
                    require(tidyverse)
                    source("S5_Null_models/functions/functions_run_null_bbgdm.R")
 
@@ -99,62 +104,40 @@ for (i in 1:iterations){
                    observed_model <- readRDS(observed_file)
                    
                    # Perform desired operations with the files
+                   names(null_model) <- paste0("estimated_",rep(1:length(null_model)))
+                   metadata<-readxl::read_excel("S6_Synthesis_model/data/synthesis_data_complete.xlsx") |> 
+                     filter(facet=="Functional",beta_type == "Podani",metric_type == "abun") |> 
+                     mutate(across(hfp_q_25:het_n_Uncertain, ~ifelse(is.na(.x),0,.x)))
+                   SES_direction <- estimate_SES_direction(null_model = null_model,observed_model = observed_model,param=FALSE) |> mutate(dataset=filename)
+                   SES_magnitude <- estimate_SES_magnitude(null_model = null_model,observed_model = observed_model, param=FALSE) |> mutate(dataset=filename)
+                   #SES_shape <- estimate_SES_shape(null_model = null_model,observed_model = observed_model,param=TRUE) |> mutate(dataset=filename)
                    
-                   names(null_model) <- paste0("estimated_",rep(1:999))
+                   out<- Reduce(left_join,list(SES_magnitude,SES_direction)) |>  relocate(dataset,direction) %>% mutate(iter = length(null_model))
+                   output[[i]]<- out
                    
-                   # # Simulated Scenario to Compare Approaches
-                   # 
-                   # # Set the random seed for reproducibility
-                   # set.seed(123)
-                   # 
-                   # # Simulated data
-                   # n_total <- 1000
-                   # n1 <- 200
-                   # n2 <- 800
-                   # 
-                   # # Generate random values for differentiation and homogenisation
-                   # differentiation <- c(runif(n1, min = 0.5, max = 0.8), rep(NA, n_total - n1))
-                   # homogenisation <- c(runif(n2, min = 0.1, max = 0.4), rep(NA, n_total - n2))
-                   # 
-                   # # Calculate the mean values using the weighted approach
-                   # mean_weighted_diff <- (n1 / (n1 + n2)) * mean(differentiation, na.rm = TRUE) - (n2 / (n1 + n2)) * mean(homogenisation, na.rm = TRUE)
-                   # 
-                   # # Calculate the standard errors
-                   # se_weighted_diff <- sqrt((n1^2 / ((n1 + n2)^2 * (n1 + n2 - 1))) * var(differentiation, na.rm = TRUE) +
-                   #                            (n2^2 / ((n1 + n2)^2 * (n1 + n2 - 1))) * var(homogenisation, na.rm = TRUE))
-                   # 
-                   # # Calculate the confidence interval using a desired confidence level (e.g., 95%)
-                   # confidence_level <- 0.95
-                   # z_value <- qnorm((1 + confidence_level) / 2)
-                   # ci_lower <- mean_weighted_diff - z_value * se_weighted_diff
-                   # ci_upper <- mean_weighted_diff + z_value * se_weighted_diff
-                   # 
-                   # # Print the results with error estimation
-                   # cat("Mean Difference (Weighted Approach):", mean_weighted_diff, "\n")
-                   # cat("Standard Error (Weighted Approach):", se_weighted_diff, "\n")
-                   # cat("Confidence Interval (Weighted Approach):", ci_lower, "-", ci_upper, "\n")
-                   # 
-                   # # Explanation of the Example:
-                   # # This updated code includes the calculation of the standard error and confidence interval for the weighted difference value.
-                   # # The standard error quantifies the variability or uncertainty around the mean difference estimate.
-                   # # The confidence interval provides a range of plausible values for the true mean difference, based on the desired confidence level.
-                   # # By incorporating the error estimation, you can better understand the precision of the difference estimate and the level of uncertainty associated with it.
-                   
-                   SES_direction <- estimate_SES_direction(null_model = null_model,observed_model = observed_model,param=TRUE) |> mutate(dataset=filename)
-                   SES_magnitude <- estimate_SES_magnitude(null_model = null_model,observed_model = observed_model, param=TRUE) |> mutate(dataset=filename)
-                   SES_shape <- estimate_SES_shape(null_model = null_model,observed_model = observed_model,param=TRUE) |> mutate(dataset=filename)
-                   
-                   out<- Reduce(full_join,list(SES_direction,SES_magnitude,SES_shape)) |>  relocate(dataset,direction)
-                   output[[i]]<- SES_direction
-                   
-                 }
+}, error = function(e) {cat(glue::glue("dataset {i} - {filename} [FAILED]"))})
+}
+
+null_model[[1]]
+
+glimpse(out)
 
 #stopCluster(cl) 
-
+write_rds(output,"tmp2.rds")
 #Save final results.
 output |> 
   bind_rows() |> 
+  filter(direction_pvalue < 0.05) |> 
+  mutate(ses = sign(direction_SES)) |> 
+  group_by(direction) |> 
+  count(ses)
   xlsx::write.xlsx("S6_Synthesis_model/BBGDM_SES.xlsx")
 
 
 
+length(which(!sapply(output,is.null)))
+
+
+out |> 
+  left_join(metadata) |> 
+  glimpse()

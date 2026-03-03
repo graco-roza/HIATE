@@ -74,8 +74,8 @@ get_bbgdm_predictors <- function(x, pred){
   data_sim <- data_dissim %>%  mutate(distance=1-distance)
   
   options(warn = 0) # turn off warnings
-  model_dissim <- gdm::gdm(data= data_dissim , geo=TRUE, knots=NULL, splines= NULL) 
-  model_sim <- gdm::gdm(data= data_sim, geo=TRUE, knots=NULL, splines= NULL) 
+  model_dissim <- try(gdm::gdm(data= data_dissim , geo=TRUE, knots=NULL, splines= NULL)) 
+  model_sim <- try(gdm::gdm(data= data_sim, geo=TRUE, knots=NULL, splines= NULL))
 
   model<-list(differentiation = model_dissim, homogenization = model_sim)
   var_names <- lapply(model, function(x) tryCatch(x$predictors,error=function(e) NULL)) %>%  unlist() %>%  unique()
