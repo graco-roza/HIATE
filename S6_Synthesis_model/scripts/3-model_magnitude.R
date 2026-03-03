@@ -572,7 +572,7 @@ avg_comparisons(best_model_traits, variables= c("direction"), by = c("main_land_
 # @Main text figures ===== #################################################################################
 #'---------------------------------------------------------------------------------------------------------------
 
-direction_colors = c("Dissimilarity increase" = "#ff7f32","Similarity increase" = "#9f5cc0")  
+direction_colors = c("Increasing dissimilarity" = "#ff7f32","Increasing similarity" = "#9f5cc0")  
 
 contrasts_magnitude<-predictions(best_model_species,  by = c("ecosystem_type","direction"),
                                  newdata = datagrid(newdata=best_model_species$data,
@@ -639,12 +639,12 @@ Fig_3<-
   mutate(
     direction = recode(
       direction,
-      "Differentiation" = "Dissimilarity increase",
-      "Homogenisation"  = "Similarity increase"
+      "Differentiation" = "Increasing dissimilarity",
+      "Homogenisation"  = "Increasing similarity"
     ),
     direction = factor(
       direction,
-      levels = c("Dissimilarity increase", "Similarity increase")
+      levels = c("Increasing dissimilarity", "Increasing similarity")
     )
   ) |> 
   mutate(
@@ -653,6 +653,7 @@ Fig_3<-
       str_detect(group, "^hetmagnitude") ~ "Habitat Heterogeneity"
     )) |> 
   mutate(group = factor(group,levels=c("Human Footprint","Habitat Heterogeneity"))) |> 
+  mutate(facet = factor(facet,levels=c("Taxonomic turnover","Functional turnover"))) |> 
   ggplot(aes(y=Predictor,x=draw,colour=direction))+
     ggstats::geom_stripped_rows(
       aes(y = Predictor),

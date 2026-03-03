@@ -53,8 +53,13 @@ pacman::p_load(
 # grab the array id value from the environment variable passed from sbatch
 slurm_arrayid <- Sys.getenv("SLURM_ARRAY_TASK_ID", unset = "")
 
+<<<<<<< Updated upstream
 files <- list.files("S1_Preprocessing/Raw_data", pattern = "\\.xlsx$", ignore.case = TRUE)
 dataset_ids <- tools::file_path_sans_ext(files)
+=======
+# coerce the value to an integer
+ii <- 1 #as.numeric(slurm_arrayid) #if using HPC
+>>>>>>> Stashed changes
 
 if (slurm_arrayid != "") {
   ii <- as.numeric(slurm_arrayid)
@@ -67,10 +72,26 @@ if (slurm_arrayid != "") {
 }
 
 # @ run analysis ######
+<<<<<<< Updated upstream
 data_info <- readxl::read_xlsx("S1_Preprocessing/Miscellaneous/dataset_info_all.xlsx")
 source("S1_Preprocessing/Functions/auxiliary_functions.R")
 
 for (focal_dataset in focal_datasets) {
+=======
+#' -----------------------------------------------------------------------------------------------------------------
+
+for (ii in length(list.files("S1_Preprocessing/Raw_data"))){
+  
+files<-list.files("S1_Preprocessing/Raw_data")
+
+focal_dataset <- tools::file_path_sans_ext(files[ii])
+
+
+  # read dataset info
+  data_info <- readxl::read_xlsx("S1_Preprocessing/Miscellaneous/dataset_info_all.xlsx") 
+  source("S1_Preprocessing/Functions/auxiliary_functions.R")
+  
+>>>>>>> Stashed changes
   tryCatch({
     write("clean data", stdout())
     write(focal_dataset, stdout())
