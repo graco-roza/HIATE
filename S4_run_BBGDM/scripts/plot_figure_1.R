@@ -754,7 +754,7 @@ predictor_rank_plot <- bbgdm_summary |>
 
 # Save the final figure as a PDF
 ggsave(
-  filename = file.path("S7_Model_outputs_figures_and_tables/extended_data", "Extended_Figure_2.pdf"),  # Save path with file name
+  filename = file.path("S7_Model_outputs_figures_and_tables/supplementary_figures", "Supplementary_Figure_predictor_rank_by_spatial_extent.pdf"),  # Save path with file name
   plot = predictor_rank_plot,         # Specify the figure to save
   device = cairo_pdf,      # Use Cairo PDF device for high-quality output
   height = 5, width = 6, units = "in" # Define dimensions in millimeters

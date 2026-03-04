@@ -71,7 +71,7 @@ BAYES_SEED <- 1234   # Seed for reproducibility in Bayesian sampling
 # Load and preprocess data ####
 # Process data for testing dependency between species and traits
 # This relies on null model results from S5
-model_data <- process_model_data("S6_Synthesis_model/data/synthesis_data_revision.xlsx", "convergence")
+model_data <- process_model_data("S6_Synthesis_model/data/synthesis_data.xlsx", "convergence")
 
 model_data <- model_data |>  filter(beta_type == "Podani", metric_type == "abun")
 # Check for convergence in direction 
@@ -722,7 +722,7 @@ direction_figure_data <- generate_ses_figure_data(
 )
 
 # Plot posterior distributions and save the figure
-Extended_Figure_6 <- plot_posterior_draws(
+supplementary_figure_convergence_direction <- plot_posterior_draws(
   data = direction_figure_data,
   facet_var = "response",
   xlim = c(-5, 12),
@@ -731,10 +731,10 @@ Extended_Figure_6 <- plot_posterior_draws(
   tick_factor = 2.5
 )
 
-# Save the extended figure to the specified directory
+# Save the supplementary figure to the specified directory
 ggsave(
-  filename = here::here("S7_Model_outputs_figures_and_tables", "extended_data", "Extended_Figure_6.pdf"),
-  plot = Extended_Figure_6,
+  filename = here::here("S7_Model_outputs_figures_and_tables", "supplementary_figures", "Supplementary_Figure_convergence_direction.pdf"),
+  plot = supplementary_figure_convergence_direction,
   device = cairo_pdf,
   width = 89,
   height = 40,
@@ -918,7 +918,7 @@ magnitude_figure_data <- generate_ses_figure_data(
 )
 
 # Plot posterior draws for magnitude divergence
-Extended_Figure_7 <- plot_posterior_draws(
+supplementary_figure_convergence_magnitude <- plot_posterior_draws(
   data = magnitude_figure_data,
   facet_var = "response",
   xlim = c(-5, 12),
@@ -929,8 +929,8 @@ Extended_Figure_7 <- plot_posterior_draws(
 
 # Save the figure to the specified directory
 ggsave(
-  filename = here::here("S7_Model_outputs_figures_and_tables", "extended_data", "Extended_Figure_7.pdf"),
-  plot = Extended_Figure_7,
+  filename = here::here("S7_Model_outputs_figures_and_tables", "supplementary_figures", "Supplementary_Figure_convergence_magnitude.pdf"),
+  plot = supplementary_figure_convergence_magnitude,
   device = cairo_pdf,
   width = 89,
   height = 40,
@@ -1045,7 +1045,7 @@ shape_figure_data <- generate_ses_figure_data(
   )
 
 # Plot posterior draws for shape divergence
-Extended_Figure_8 <- plot_posterior_draws(
+supplementary_figure_convergence_shape <- plot_posterior_draws(
   data = shape_figure_data,
   facet_var = c("response", "shape"),
   xlim = c(-8, 12),
@@ -1057,8 +1057,8 @@ Extended_Figure_8 <- plot_posterior_draws(
 
 # Save the plot to the specified directory
 ggsave(
-  filename = here::here("S7_Model_outputs_figures_and_tables", "extended_data", "Extended_Figure_8.pdf"),
-  plot = Extended_Figure_8 + theme(plot.margin = margin(3, 3, 3, 3)),
+  filename = here::here("S7_Model_outputs_figures_and_tables", "supplementary_figures", "Supplementary_Figure_convergence_shape.pdf"),
+  plot = supplementary_figure_convergence_shape + theme(plot.margin = margin(3, 3, 3, 3)),
   device = cairo_pdf(),
   width = 89,
   height = 120,

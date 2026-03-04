@@ -507,4 +507,5 @@ synthesis_data<-models_collected |>
 final_data<- synthesis_data |> 
   left_join(combined_data) 
 
+writexl::write_xlsx(data.frame(final_data), here::here("S6_Synthesis_model","data","synthesis_data.xlsx"))
 writexl::write_xlsx(data.frame(final_data), here::here("S6_Synthesis_model","data","synthesis_data_relative_magnitude.xlsx"))

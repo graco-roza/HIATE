@@ -11,7 +11,7 @@
 # INPUTS:
 #   - `S1_Preprocessing/Processed/*.rds`
 #   - `S1_Preprocessing/Miscellaneous/dataset_info_all.xlsx`
-#   - `S6_Synthesis_model/data/synthesis_data_new.xlsx`
+#   - `S6_Synthesis_model/data/synthesis_data.xlsx`
 #
 # OUTPUTS:
 #   - Publication-ready figure objects saved/exported within this script.
@@ -82,7 +82,7 @@ my_base_theme <- function() {
 }
 
 additional_features <- 
-  "S6_Synthesis_model/data/synthesis_data_new.xlsx" |>
+  "S6_Synthesis_model/data/synthesis_data.xlsx" |>
   readxl::read_xlsx() |>
   filter(!dataset %in% c("N67TTP","N78TTP","S47TTP")) |> 
   dplyr::mutate(
@@ -267,7 +267,7 @@ disturbance <- dataset_features |>
          y = guide_axis_truncated(trunc_lower = function(x) x-0.2, trunc_upper = function(x) x+0.2))
 
 # Combined figure
-  Extended_figure_1 <-
+  supplementary_figure_dataset_coverage <-
     ({map_terrestrial | map_aquatic} /
     {realm | biotic_groups | disturbance} /
     {(latitude | HFP)/
@@ -276,8 +276,16 @@ disturbance <- dataset_features |>
     plot_layout(heights=c(.3,.2,.3,.1)) +
     plot_annotation(tag_levels = "a") &
     theme(plot.tag = element_text(face = "bold", size=8, hjust=1))
-  
- 
+
+  ggsave(
+    filename = here("S7_Model_outputs_figures_and_tables", "supplementary_figures", "Supplementary_Figure_dataset_coverage.pdf"),
+    plot = supplementary_figure_dataset_coverage,
+    device = cairo_pdf,
+    height = 210,
+    width = 183,
+    units = "mm"
+  )
+
 library(dplyr)
 library(tidyr)
 library(stringr)
@@ -296,7 +304,7 @@ long_features <- dataset_features %>%
   separate(var_name, into=c("predictor","buffer")) |> 
   mutate(buffer = as.numeric(buffer))
   
-Extended_figure_6<-long_features |> 
+supplementary_figure_predictor_distributions <- long_features |> 
   filter(predictor != "modis") |> 
   mutate(predictor = stringr::str_replace_all(predictor, c("hfp" = "Human Footprint", "het" = "Habitat Heterogeneity"))) |> 
   mutate(predictor = factor(predictor, levels=c("Human Footprint","Habitat Heterogeneity"))) |> 
@@ -308,5 +316,12 @@ Extended_figure_6<-long_features |>
   scale_fill_manual(values=land_use_colors)+
   labs(x="Human pressure value", y = "Main land use type")+theme(legend.position="none")
   
-ggsave(here("S7_Model_outputs_figures_and_tables", "extended_data", "Extended_Figure_6.pdf"), Extended_figure_6, device = cairo_pdf, height = 150, width = 183, units="mm")
+ggsave(
+  filename = here("S7_Model_outputs_figures_and_tables", "supplementary_figures", "Supplementary_Figure_predictor_distributions.pdf"),
+  plot = supplementary_figure_predictor_distributions,
+  device = cairo_pdf,
+  height = 150,
+  width = 183,
+  units = "mm"
+)
 

@@ -7,7 +7,7 @@
 #'   interaction effects and conducting K-fold cross-validation for model 
 #'   comparison due to the multinomial nature of the response variable, which 
 #'   precludes the use of standard LOO-CV (Leave-One-Out Cross-Validation).
-#'   Additionally, the script generates main text and extended figures for 
+#'   Additionally, the script generates main text and supplementary figures for 
 #'   scientific reporting.
 #'
 #' USAGE:
@@ -25,7 +25,7 @@
 #' OUTPUTS:
 #'   - Fitted models saved in `S7_Model_outputs_figures_and_tables/model/shape/`
 #'   - Main figures saved in `S7_Model_outputs_figures_and_tables/main_figures/`
-#'   - Extended figures saved in `S7_Model_outputs_figures_and_tables/extended_data/`
+#'   - Supplementary figures saved in `S7_Model_outputs_figures_and_tables/supplementary_figures/`
 #'   - K-fold cross-validation results for species and traits models saved in:
 #'       * `kfold_results_species.RData`
 #'       * `kfold_results_traits.RData`
@@ -80,7 +80,7 @@ BAYES_SEED <- 1234   # Seed for reproducibility in Bayesian sampling
 
 # Load and process model data ####
 # Load the synthesis data for modeling the shape of responses
-model_data <- process_model_data("S6_Synthesis_model/data/synthesis_data_complete.xlsx", "shape")
+model_data <- process_model_data("S6_Synthesis_model/data/synthesis_data.xlsx", "shape")
 
 
 model_data <- model_data |>  filter(framework == "Podani", feature == "abun")
@@ -1433,7 +1433,7 @@ text_df <- posterior_plot_data %>%
 plot_df <- bind_rows(draws_df, text_df) %>%
   mutate(layer = factor(layer, levels = c(" ", "  "))) 
 
- Extended_Figure_5 <- 
+ supplementary_figure_shape_posteriors <- 
   ggplot(plot_df) +
   facet_nested(
     facet+response~shape+layer,
@@ -1496,8 +1496,8 @@ plot_df <- bind_rows(draws_df, text_df) %>%
     x = guide_axis(cap = TRUE)
   ) 
 
- ggsave(filename = here::here("S7_Model_outputs_figures_and_tables", "extended_data", "Extended_Figure_5.pdf"),
-        plot = Extended_Figure_5,
+ ggsave(filename = here::here("S7_Model_outputs_figures_and_tables", "supplementary_figures", "Supplementary_Figure_shape_posteriors.pdf"),
+        plot = supplementary_figure_shape_posteriors,
         device = cairo_pdf,
         width=14,height=14,units="in")
 
