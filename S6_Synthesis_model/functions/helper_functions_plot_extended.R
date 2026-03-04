@@ -299,9 +299,9 @@ plot_posterior_draws <- function(data,  add_annotations = FALSE,
 }
 
 # Example usage:
-# plot_figure(direction_figure_data, "direction", "Extended_Figure_2.pdf")
-# plot_figure(magnitude_figure_data, "magnitude", "Extended_Figure_3.pdf")
-# plot_figure(shape_figure_data, "shape", "Extended_Figure_4.pdf")
+# plot_figure(direction_figure_data, "direction", "Supplementary_Figure_direction_posteriors.pdf")
+# plot_figure(magnitude_figure_data, "magnitude", "Supplementary_Figure_magnitude_posteriors.pdf")
+# plot_figure(shape_figure_data, "shape", "Supplementary_Figure_shape_posteriors.pdf")
 
 
 generate_ses_figure_data <- function(fit_model, model_type, draw_min = -7, draw_max = 12) {

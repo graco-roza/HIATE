@@ -21,7 +21,7 @@
 #' OUTPUTS:
 #'   - Bayesian models saved in `S7_Model_outputs_figures_and_tables/model/direction`
 #'   - Figures saved in `S7_Model_outputs_figures_and_tables/main_figures` and
-#'     `S7_Model_outputs_figures_and_tables/extended_data`
+#'     `S7_Model_outputs_figures_and_tables/supplementary_figures`
 #'
 #' AUTHOR: Caio Graco-Roza
 #' LAST UPDATED: 2024-11-24
@@ -605,7 +605,7 @@ draw_limits <- range(plot_df$draw_min, plot_df$draw_max, na.rm = TRUE)
 # give the text panel a bit of extra room to the right
 text_limits <- c(draw_limits[1], draw_limits[2] * 1.15)
 # 3. Build the plot
-Extended_Figure_3 <- ggplot(plot_df) +
+supplementary_figure_direction_posteriors <- ggplot(plot_df) +
   facet_nested(
     ~facet+layer,
     scales      = "free_x",
@@ -670,8 +670,8 @@ Extended_Figure_3 <- ggplot(plot_df) +
   ) +
   scale_x_continuous(breaks=seq(-2.5,7.5,by=2.5))
 
-ggsave(filename = here::here("S7_Model_outputs_figures_and_tables", "extended_data", "Extended_Figure_3.pdf"),
-       plot = Extended_Figure_3,
+ggsave(filename = here::here("S7_Model_outputs_figures_and_tables", "supplementary_figures", "Supplementary_Figure_direction_posteriors.pdf"),
+       plot = supplementary_figure_direction_posteriors,
        device = cairo_pdf,
        width=10.5,height=5,units="in")
 

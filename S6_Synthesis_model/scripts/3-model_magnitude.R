@@ -21,7 +21,7 @@
 #' OUTPUTS:
 #'   - Bayesian models saved in `S7_Model_outputs_figures_and_tables/model/magnitude`
 #'   - Figures saved in `S7_Model_outputs_figures_and_tables/main_figures` and
-#'     `S7_Model_outputs_figures_and_tables/extended_data`
+#'     `S7_Model_outputs_figures_and_tables/supplementary_figures`
 #'
 #' AUTHOR: Caio Graco-Roza
 #' LAST UPDATED: 2024-11-24
@@ -727,7 +727,7 @@ posterior_plot_data <- generate_figure_data(best_model_species,best_model_traits
     )) |> 
   mutate(response = factor(response,levels=c("Human Footprint","Habitat Heterogeneity")))
 
-Extended_data_Fig4 <- ggplot(posterior_plot_data, aes(x = posterior, y = parameter, colour = significant)) +
+supplementary_figure_magnitude_posteriors <- ggplot(posterior_plot_data, aes(x = posterior, y = parameter, colour = significant)) +
 stat_pointinterval(.width=c(.8,.89,.95)) +
   geom_text(
     data = ~ .x |>  distinct(across(any_of(c("response","shape", "parameter", "facet"))), .keep_all = TRUE), # Add text annotations from get_support
@@ -763,5 +763,5 @@ stat_pointinterval(.width=c(.8,.89,.95)) +
   coord_cartesian(xlim=c(-5,10), clip="off")+
   scale_colour_manual(values=rev(c("black","gray60")))
 
-ggsave(Extended_data_Fig4, filename="S7_Model_outputs_figures_and_tables/extended_data/Extended_Figure_4.pdf", device=cairo_pdf, width=10.5,height=7.5,units="in")
+ggsave(supplementary_figure_magnitude_posteriors, filename="S7_Model_outputs_figures_and_tables/supplementary_figures/Supplementary_Figure_magnitude_posteriors.pdf", device=cairo_pdf, width=10.5,height=7.5,units="in")
 

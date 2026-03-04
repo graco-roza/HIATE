@@ -6,7 +6,7 @@ Final repository for manuscript-ready outputs generated in S4-S6.
 
 - `model/`: fitted model objects and serialized outputs.
 - `main_figures/`: main manuscript figures.
-- `extended_data/`: extended-data figures and related tables.
+- `supplementary_figures/`: supplementary figures and related tables.
 
 ## Reproducibility notes
 

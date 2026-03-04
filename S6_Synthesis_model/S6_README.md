@@ -25,7 +25,9 @@ This step compiles synthesis data and fits cross-dataset Bayesian models for dir
 ## Outputs
 
 - Model objects in `S7_Model_outputs_figures_and_tables/model/`
-- Figures in `S7_Model_outputs_figures_and_tables/main_figures/` and `.../extended_data/`
+
+- Figures in `S7_Model_outputs_figures_and_tables/main_figures/` and `.../supplementary_figures/`
+
 
 ## Reproducibility notes
 

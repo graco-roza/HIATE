@@ -1,6 +1,8 @@
 # HIATE Project Repository
 
+
 Welcome to the HIATE project repository, associated with the manuscript **"Human pressures drive widespread decoupling of taxonomic and functional turnover"** by Graco-Roza et al.
+
 This repository includes all the data, scripts, and documentation required to replicate the analyses and figures presented in the manuscript. 
 The repository is designed to align with FAIR (Findable, Accessible, Interoperable, Reusable) principles, ensuring clear organization, metadata, and usability.
 If any improvement can be done, please contact me at: **caio.roza@helsinki.fi**
@@ -51,7 +53,7 @@ HIATE:
       - functions
       - scripts
   - S7_Model_outputs_figures_and_tables:
-      - extended_data
+      - supplementary_figures
       - main_figures
       - model
 ```
@@ -122,7 +124,7 @@ HIATE:
 ### Step 7: Outputs and Figures (`S7_Model_outputs_figures_and_tables`)
 - **Description**: Contains all final models and figures for the manuscript.
 - **Key Contents**:
-  - **Figures**: Extended data figures, main manuscript figures (`*.pdf`).
+  - **Figures**: Supplementary figures, main manuscript figures (`*.pdf`).
   - **Models**: RDS files for final models.
 - **README**: Summarizes the structure of outputs and figure generation.
 
