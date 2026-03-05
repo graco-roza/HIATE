@@ -72,7 +72,7 @@ source(here::here("S6_Synthesis_model/functions/helper_functions_plot_extended.R
 
 #' List all files (using full paths)
 beta_list <- list.files(
-  "~/Library/CloudStorage/OneDrive-UniversityofHelsinki/Ongoing manuscripts/HIATES/Analysis/HIATE/S2_get_beta_diversity/betadiv_output",
+  "S2_get_beta_diversity/betadiv_output",
   recursive = TRUE, full.names = TRUE
 )
 
@@ -176,7 +176,7 @@ df_wide |>
 ```
 
 ```{r}
-metadata<- readxl::read_excel("~/Library/CloudStorage/OneDrive-UniversityofHelsinki/Ongoing manuscripts/HIATES/Analysis/HIATE/S6_Synthesis_model/data/synthesis_data_complete.xlsx") |> 
+metadata<- readxl::read_excel("S6_Synthesis_model/data/synthesis_data.xlsx") |> 
   dplyr::filter(!dataset %in% c("N67TTP", "N78TTP", "S47TTP")) |> 
   rename(framework = "beta_type",
          feature = "metric_type")
@@ -1317,7 +1317,7 @@ direction_traits_pod_pa<- read_rds(here::here("S7_Model_outputs_figures_and_tabl
 best_model_species <- direction_species_pod_pa
 best_model_traits <- direction_traits_pod_pa
 
-model_data<- readxl::read_excel("~/Library/CloudStorage/OneDrive-UniversityofHelsinki/Ongoing manuscripts/HIATES/Analysis/HIATE/S6_Synthesis_model/data/synthesis_data_complete.xlsx") |> 
+model_data<- readxl::read_excel("S6_Synthesis_model/data/synthesis_data.xlsx") |> 
   dplyr::filter(!dataset %in% c("N67TTP", "N78TTP", "S47TTP")) |> 
   rename(framework = "beta_type",
          feature = "metric_type") |> 
@@ -1917,7 +1917,7 @@ direction_traits_bas_abun<- read_rds(here::here("S7_Model_outputs_figures_and_ta
 best_model_species <- direction_species_bas_abun
 best_model_traits <- direction_traits_bas_abun
 
-model_data<- readxl::read_excel("~/Library/CloudStorage/OneDrive-UniversityofHelsinki/Ongoing manuscripts/HIATES/Analysis/HIATE/S6_Synthesis_model/data/synthesis_data_complete.xlsx") |> 
+model_data<- readxl::read_excel("S6_Synthesis_model/data/synthesis_data.xlsx") |> 
   dplyr::filter(!dataset %in% c("N67TTP", "N78TTP", "S47TTP")) |> 
   rename(framework = "beta_type",
          feature = "metric_type") |> 
@@ -2516,7 +2516,7 @@ direction_traits_bas_pa<- read_rds(here::here("S7_Model_outputs_figures_and_tabl
 best_model_species <- direction_species_bas_pa
 best_model_traits <- direction_traits_bas_pa
 
-model_data<- readxl::read_excel("~/Library/CloudStorage/OneDrive-UniversityofHelsinki/Ongoing manuscripts/HIATES/Analysis/HIATE/S6_Synthesis_model/data/synthesis_data_complete.xlsx") |> 
+model_data<- readxl::read_excel("S6_Synthesis_model/data/synthesis_data.xlsx") |> 
   dplyr::filter(!dataset %in% c("N67TTP", "N78TTP", "S47TTP")) |> 
   rename(framework = "beta_type",
          feature = "metric_type") |> 
@@ -3274,7 +3274,7 @@ magnitude_traits_pod_pa<- read_rds(here::here("S7_Model_outputs_figures_and_tabl
 best_model_species<- magnitude_species_pod_pa
 best_model_traits<-magnitude_traits_pod_pa
 
-metadata_pod_pa<- readxl::read_excel("~/Library/CloudStorage/OneDrive-UniversityofHelsinki/Ongoing manuscripts/HIATES/Analysis/HIATE/S6_Synthesis_model/data/synthesis_data_complete.xlsx") |> 
+metadata_pod_pa<- readxl::read_excel("S6_Synthesis_model/data/synthesis_data.xlsx") |> 
   dplyr::filter(!dataset %in% c("N67TTP", "N78TTP", "S47TTP")) |> 
   rename(framework = "beta_type",
          feature = "metric_type") |> 
@@ -3637,7 +3637,7 @@ magnitude_traits_bas_abun<- read_rds(here::here("S7_Model_outputs_figures_and_ta
 best_model_species<- magnitude_species_bas_abun
 best_model_traits<-magnitude_traits_bas_abun
 
-metadata_bas_abun<- readxl::read_excel("~/Library/CloudStorage/OneDrive-UniversityofHelsinki/Ongoing manuscripts/HIATES/Analysis/HIATE/S6_Synthesis_model/data/synthesis_data_complete.xlsx") |> 
+metadata_bas_abun<- readxl::read_excel("S6_Synthesis_model/data/synthesis_data.xlsx") |> 
   dplyr::filter(!dataset %in% c("N67TTP", "N78TTP", "S47TTP")) |> 
   rename(framework = "beta_type",
          feature = "metric_type") |> 
@@ -3997,7 +3997,7 @@ magnitude_traits_bas_pa<- read_rds(here::here("S7_Model_outputs_figures_and_tabl
 best_model_species<- magnitude_species_bas_pa
 best_model_traits<-magnitude_traits_bas_pa
 
-metadata_bas_pa<- readxl::read_excel("~/Library/CloudStorage/OneDrive-UniversityofHelsinki/Ongoing manuscripts/HIATES/Analysis/HIATE/S6_Synthesis_model/data/synthesis_data_complete.xlsx") |> 
+metadata_bas_pa<- readxl::read_excel("S6_Synthesis_model/data/synthesis_data.xlsx") |> 
   dplyr::filter(!dataset %in% c("N67TTP", "N78TTP", "S47TTP")) |> 
   rename(framework = "beta_type",
          feature = "metric_type") |> 
