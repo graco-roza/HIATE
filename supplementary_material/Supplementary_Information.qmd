@@ -140,12 +140,6 @@ df_summary <- df_wide |>
   ) 
 ```
 
-Baselga’s framework partitions Sørensen dissimilarity into turnover and nestedness-resultant components based on species presence–absence, attributing variation to Taxonomic turnover versus richness gradients [@Baselga2010]. In contrast, Podani’s framework decomposes dissimilarity into replacement and richness difference components, using a distinct rationale that can lead to slightly different values and interpretations [@Podani2011].
-
-### Raw data (Beta diversity matrices)
-
-Overall, correlations of raw $\beta$-diversity values were high across frameworks, indicating substantial agreement between methods (@fig-corr-dist). The strongest concordance was observed for Taxonomic turnover with presence–absence data (median = 0.904), whereas the weakest occurred for Taxonomic turnover with abundance data (median = 0.765), suggesting that abundance information accentuates methodological differences. In contrast, Functional turnover estimates were consistently highly correlated across both data types (median \> 0.96), underscoring the robustness of trait-based $\beta$-diversity regardless of partitioning approach. These results support our choice of Podani’s framework for the main analyses while demonstrating that our conclusions are largely insensitive to methodological variation.
-
 ```{r}
 #| label: fig-corr-dist
 #| message: false
@@ -223,12 +217,6 @@ direction_nested <- direction_table_clean |>
   arrange(feature, facet, framework)
 ```
 
-### Relationship direction (Harrel-Davis quantile estimator Δr²)
-
-We evaluated how sensitive our directional effect size (Harrell–Davis $\Delta r^2$) is to the choice of $\beta$-diversity partitioning framework (Baselga vs. Podani) and to whether abundance or presence–absence data are used. Across all four combinations—species versus Functional turnover, abundance versus presence–absence—the Pearson correlation between $\Delta r^2$ values ranged from $r \approx 0.72$ to $0.92$ (95% CI), indicating that our inference on differentiation versus homogenisation is highly robust (@fig-quantile-corr). The lowest correlation ($r \approx 0.72$) occurred for abundance-based Taxonomic turnover, but even in this case the two frameworks agreed in more than 70% of datasets.
-
-We counted, for each framework and data type, how many datasets showed net differentiation ($\Delta r^2 < 0$) versus homogenisation ($\Delta r^2 > 0$) in species and trait turnover (@tbl-t1). For presence–absence data, the two partitioning schemes gave almost identical tallies (e.g. Baselga: 145 vs. 16 species-differentiation vs. homogenisation; Podani: 125 vs. 36). In contrast, abundance-based methods diverged more: Baselga reported 145 vs. 16 differentiated vs. homogenised datasets for species, whereas Podani gave 110 vs. 51; for traits the split was 85 vs. 76 (Baselga) versus 46 vs. 115 (Podani).
-
 ```{r}
 #| label: tbl-t1
 #| tbl-cap: "Number of datasets showing compositional *differentiation* or *homogenisation* 
@@ -262,51 +250,6 @@ table_direction <- direction_nested |>
 
 table_direction
 ```
-
-Trait turnover estimates remained almost perfectly correlated between Podani’s and Baselga’s frameworks, even when kernel-density hypervolumes were weighted by abundance (@fig-quantile-corr). Both are based on the same shared and unique volumes,
-
-$$
-A = \mathrm{vol}(H_1 \cap H_2), \quad
-B = \mathrm{vol}(H_1) - A, \quad
-C = \mathrm{vol}(H_2) - A,
-$$
-
-and differ only in the denominators:
-
-$$
-T_{\mathrm{Podani}} = \frac{2\,\min(B,C)}{2A + B + C},
-\qquad
-T_{\mathrm{Baselga}} = \frac{\min(B,C)}{A + \min(B,C)}.
-$$
-
-When $A \gg B,C$, both reduce to
-
-$$
-\frac{\min(B,C)}{A},
-$$
-
-which explains their close agreement for traits ($r > 0.9$).
-
-By contrast, species presence–absence data often have $A \sim B,C$, so the denominators $2A + B + C$ and $A + \min(B,C)$ no longer coincide, leading to weaker correlations between frameworks (@tbl-metric-corr, $r \approx 0.72$). Ecologically, this difference arises because Baselga’s formulation gives more weight to the complete loss of rare, functionally unique taxa—events that increase the smaller unique volume $\min(B,C)$ and thus strengthen homogenisation signals. When abundances are included, those same rare taxa contribute little to the kernel density, keeping $\min(B,C)$ small relative to $A$ and producing fewer homogenisation signals under Baselga’s formula.
-
-Finally, because
-
-$$
-T_{\mathrm{Podani}}
-=
-\frac{2\,\min(B,C)}{2A + B + C}
-\;<\;
-\frac{\min(B,C)}{A + \min(B,C)}
-=
-T_{\mathrm{Baselga}},
-\quad (B \neq C),
-$$
-
-Podani’s doubled-numerator formulation consistently yields lower turnover values (i.e. stronger homogenisation) for the same overlap and unique volumes. This extra sensitivity means that even moderate declines in specialists’ abundances—or small contractions of unique trait space—are registered as homogenisation under Podani, whereas Baselga’s denominator buffers against such shifts when the shared core $A$ remains large.
-
-To assess whether our conclusions depend on the choice of directional effect size metric, we compared the weighted median difference, the overlap-adjusted weighted median, and the Harrell–Davis quantile estimator. Effect size ranges were similar across metrics (species: –0.54 to 0.69 for weighted metrics, –17.65 to 5.83 for Harrell–Davis; traits: –0.47 to 0.47 and –15.27 to 3.44). All metrics were strongly correlated, with $r$ values from 0.81 to 0.98 across facets (@tbl-metric-corr).
-
-These results demonstrate that directional patterns are robust across frameworks and metrics, supporting the reliability of our approach.
 
 ```{r}
 #| label: fig-quantile-corr
@@ -427,13 +370,6 @@ gt(df_clean, groupname_col = "Facet") |>
 
 
 ```
-
-### Magnitude of relationship (Sum of I-Splines)
-
-Overall, Baselga’s HFP- and HH-driven magnitudes tend to be slightly higher than Podani’s, but the only statistically significant framework bias occurs for species turnover—and even there the absolute offsets are small (@tbl-hfp-wilcoxon; @tbl-hh-wilcoxon). For instance, in the HFP analysis Baselga’s median effect on Taxonomic turnover exceeds Podani’s by 0.047 under abundance weighting ($p < 0.001$), whereas for Functional turnover the median difference is effectively zero and non-significant ($p \approx 0.06$). The HH results mirror this pattern ($p < 0.001$ for species, $p > 0.1$ for traits), confirming that framework choice produces detectable but ecologically negligible shifts in trait-turnover magnitudes.
-
-When we compare homogenisation versus differentiation magnitudes (@fig-hfp-magnitude; @fig-hh-magnitude), almost every combination of facet, data type, and framework shows stronger homogenisation. The lone exception is Taxonomic turnover under abundance weighting, where the median magnitudes for homogenisation and differentiation are nearly identical—and in some splits even reversed—indicating no clear dominance of one process over the other in that specific case. All other panels—species presence–absence and both trait facets—display consistently higher homogenisation than differentiation magnitudes, underscoring that human pressures more often drive community convergence than divergence across both taxonomic and functional dimensions.
-
 ```{r}
 #| include: false
 
@@ -787,14 +723,6 @@ ggplot(cross_het, aes(x = Baselga, y = Podani, fill = n)) +
     panel.grid       = element_blank()
   )
 ```
-
-## Raw $\beta$-diversity distributions
-
-Patterns of $\beta$-diversity revealed clear contrasts among datasets. Species turnover typically occupied a much broader dissimilarity range than trait turnover, indicating that taxonomic composition varies more strongly across sites than functional attributes (@fig-raw-diss). This consistent difference across frameworks and data types confirms that functional dissimilarity is generally more constrained than species-level turnover.
-
-Relating mean dissimilarity to environmental gradients showed that differentiation effects increased with mean $\beta$-diversity, particularly for species under both human footprint and habitat heterogeneity gradients (@fig-hfp-mag-mean-diss; @fig-hh-mag-mean-diss). In contrast, trait-based differentiation and all homogenisation responses showed little or no relationship with mean dissimilarity.
-
-Overall, these results indicate that datasets with higher mean dissimilarity tend to display stronger differentiation effects, while the absence of consistent associations in other cases confirms that the method is not systematically influenced by average community turnover. The observed relationships therefore represent genuine ecological variation in response magnitude rather than artefacts of dataset heterogeneity.
 
 ```{r}
 #| label: fig-raw-diss
